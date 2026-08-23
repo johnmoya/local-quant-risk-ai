@@ -28,8 +28,51 @@ rather than trusting every call site, removes that entire class of bug.
 
 ## Return convention
 
-TODO (M1): log returns vs. simple returns — decision and rationale, plus the
-explicit missing-data handling policy.
+**Log returns are the default**: `r_t = ln(P_t / P_{t-1})`. Simple returns
+(`r_t = P_t / P_{t-1} - 1`) are available via `method="simple"` in
+`data/returns.py` for cases that specifically need them (e.g. portfolio
+aggregation later, where simple returns are additive across assets in a way
+log returns aren't). Log returns are the default because they're
+time-additive (an n-day log return is the sum of the n daily log returns,
+which simplifies horizon scaling) and symmetric around zero, which is the
+more natural assumption for the parametric (normal) VaR method.
+
+Log returns require strictly positive prices; `compute_returns` raises
+`DataValidationError` if the input series contains a non-positive price
+when `method="log"` is requested (see
+`tests/unit/data/test_returns.py::test_non_positive_price_rejected_for_log_method`).
+
+### Missing-price policy (binding, tested)
+
+When the price series has a gap (a `NaN` price on an otherwise-present
+date), the policy is **drop**, not forward-fill:
+
+1. Returns are computed on the raw price series first, via `shift(1)`. Any
+   return that touches the missing price — the one ending on the gap date
+   and the one starting from it — comes out as `NaN` naturally, because it
+   can't be validly computed as a single adjacent-day move.
+2. Those `NaN` returns are then dropped.
+
+This deliberately does **not** bridge across the gap by computing a return
+from the last valid price *before* the gap to the first valid price *after*
+it — that would silently disguise a multi-day move as if it were a single
+day's return. It also deliberately does **not** forward-fill the missing
+price before differencing, which would manufacture an artificial
+zero-return day and silently understate realized volatility over the
+window that contains it.
+
+The `missing` parameter on `compute_returns` (currently only `"drop"` is
+implemented; other values raise `ValueError`) exists so this is a visible,
+explicit choice at the call site rather than an implicit pandas default —
+and so an alternative policy can be added later (e.g. calendar-aware
+forward-fill for a specific known reason) without changing the function's
+signature.
+
+See `tests/unit/data/test_returns.py::test_missing_price_gap_drops_only_the_returns_that_touch_it`
+for the behavior this pins down, and
+`test_gap_isolated_prices_with_no_computable_pair_raises_insufficient_data`
+for the case where every valid price is gap-isolated and no return can be
+computed at all.
 
 ## Historical VaR
 
