@@ -25,3 +25,11 @@ class InsufficientDataError(QuantRiskAIError):
     than two chronologically adjacent, non-missing price observations to
     compute a single return.
     """
+
+
+class InsufficientSampleSizeError(InsufficientDataError):
+    """There IS data, but not enough of it for the requested confidence
+    level's quantile to be backed by even one real tail observation — a
+    more specific condition than InsufficientDataError's base case of zero
+    valid data points. See risk/stats_utils.py:min_required_observations.
+    """

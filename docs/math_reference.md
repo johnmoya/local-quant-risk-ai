@@ -76,12 +76,67 @@ computed at all.
 
 ## Historical VaR
 
-TODO (M2): empirical quantile definition, worked example, minimum sample
-size guidance.
+```
+VaR_alpha = max(0, -Quantile(returns, 1 - alpha)) * position_value
+```
+
+`Quantile` is the empirical quantile with linear interpolation between
+order statistics (pandas/numpy's default `"linear"` method — the two
+libraries agree on this by construction). Implemented in
+`risk/var_historical.py::historical_var`.
+
+**The `max(0, ...)` floor** handles a real edge case forced by the sign
+convention: if the (1 - alpha) quantile of returns is itself positive (no
+losses at all in that tail — e.g. a series of constant gains), the naive
+`-quantile` would be negative, which `RiskResult`'s non-negative invariant
+correctly refuses to construct. Flooring at zero is the standard
+interpretation: "no loss is expected at this confidence level," not an
+error. See
+`tests/unit/risk/test_var_historical.py::test_var_never_negative_when_quantile_is_positive`.
+
+**Worked example** (also the known-answer test): returns
+`[-0.08, -0.04, 0.01, 0.05]`, `alpha=0.75` (so `1-alpha=0.25`). With n=4,
+linear interpolation gives `h = (n-1)*q = 0.75`, landing 75% of the way
+from the smallest value (`-0.08`) to the second-smallest (`-0.04`):
+`quantile = -0.08 + 0.75*0.04 = -0.05`. `VaR = -(-0.05) * position_value`.
+
+### Minimum sample size
+
+`n >= ceil(1 / (1 - alpha))` — the point below which the requested
+quantile isn't backed by even one real observation in the tail (e.g.
+`alpha=0.99` requires at least 100 observations; 50 is rejected with
+`InsufficientSampleSizeError`). This is a mathematical floor, not a
+robustness guarantee — a stable estimate in practice typically wants
+substantially more (e.g. ~250 observations / one trading year for 99%
+VaR). See `risk/stats_utils.py::min_required_observations`.
 
 ## Historical Expected Shortfall
 
-TODO (M2): empirical tail-mean definition, worked example.
+```
+ES_alpha = max(0, -mean(returns[returns <= Quantile(returns, 1 - alpha)])) * position_value
+```
+
+The mean of every return at or below the VaR cutoff, same sign-convention
+floor as VaR and for the same reason. The tail always includes at least
+the cutoff's lower neighboring order statistic by construction of linear
+interpolation, so it is never empty for any (alpha, sample size) pair that
+passed the minimum-sample-size check. Implemented in
+`risk/expected_shortfall.py::historical_expected_shortfall`.
+
+**Worked example**: same returns as the VaR example above. The cutoff is
+`-0.05`; only `-0.08` is `<= -0.05`, so the tail is `{-0.08}` and
+`ES = -(-0.08) * position_value` — larger than the VaR figure from the
+same data, illustrating the ES >= VaR invariant below.
+
+### ES >= VaR invariant
+
+Because the tail is defined as `returns <= cutoff`, every value in it is
+at most `cutoff`, so `mean(tail) <= cutoff`, so `-mean(tail) >= -cutoff`.
+The `max(0, ...)` floor is monotonic, so it preserves this inequality:
+`ES.value >= VaR.value` always holds at the same alpha. Tested generically
+(reusable for M3/M4) in
+`tests/unit/risk/_invariants.py::assert_es_at_least_var`, exercised over
+several synthetic datasets in `tests/unit/risk/test_var_es_invariants.py`.
 
 ## Parametric (Variance-Covariance) VaR
 
