@@ -17,8 +17,10 @@ scope decisions and milestones.
 
 ## Status
 
-Currently at **M0** (project scaffolding). No risk calculations, API, or LLM
-integration are implemented yet — see `docs/roadmap.md` for what's next.
+Currently at **M2** (Historical VaR + empirical Expected Shortfall). The
+data layer (M1) and the historical risk methods are implemented and tested;
+no API or LLM integration yet — see `docs/roadmap.md` for what's next (M3:
+Parametric VaR/ES).
 
 ## Project layout
 
