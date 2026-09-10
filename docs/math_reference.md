@@ -205,12 +205,74 @@ from the same inputs, the `ES >= VaR` invariant again.
 
 ## Monte Carlo VaR
 
-TODO (M4): simulation methodology (normal via Cholesky, default), simulation
-count vs. accuracy/runtime tradeoff, RNG seeding for reproducibility.
+```
+VaR_alpha = max(0, -Quantile(simulated_returns, 1 - alpha)) * position_value
+```
+
+Returns are modeled as `Normal(mu, sigma^2)` — the same fit as the
+Parametric method (sample mean/std, `ddof=1`) — but instead of solving the
+quantile in closed form, `n_simulations` draws are sampled from it and the
+VaR is read off as the empirical quantile of the simulated sample, exactly
+the way Historical VaR reads it off the real one. Implemented in
+`risk/var_monte_carlo.py::monte_carlo_var`.
+
+**Simulation methodology**: the default (and, in v1, only) sampler is
+normal via Cholesky decomposition of the covariance matrix
+(`risk/stats_utils.py::sample_normal`). v1 is single-asset, so the
+"covariance matrix" is the scalar `sigma^2` and its Cholesky factor is
+just `sigma`; the sampler reduces to `mu + sigma * Z` for `Z ~
+Normal(0, 1)`. This is written to generalize directly to the multivariate
+case in M11 (`mu + L @ Z`, `L` the Cholesky factor of the full covariance
+matrix) without restructuring the call shape — see the pluggable-sampler
+design note in `stats_utils.py` for the historical-bootstrap sampler noted
+as a future, non-normal alternative.
+
+**Simulation count vs. accuracy/runtime tradeoff**: `n_simulations`
+(default `DEFAULT_N_SIMULATIONS = 100_000`) trades runtime for how closely
+the simulated empirical quantile converges to the true `Normal(mu,
+sigma^2)` quantile — i.e. to the Parametric VaR figure on the same data,
+not to the Historical or true-population figure. More simulations never
+compensate for the normal assumption's own known limitation (thin tails,
+no skew; see Parametric VaR above) — they only reduce simulation noise
+around that assumption's answer. See
+`tests/unit/risk/test_var_monte_carlo.py::test_converges_to_parametric_var_at_large_n`.
+
+**RNG seeding for reproducibility**: `seed` is a required argument, not
+optional with a default — an unseeded call would be nondeterministic,
+which this method's "seeded reproducibility" requirement (see
+`docs/roadmap.md`, M4) exists specifically to rule out. Two calls with the
+same `seed`, `n_simulations`, and input data always produce the exact same
+simulated array (`numpy.random.default_rng(seed)`) and therefore the exact
+same result. See
+`tests/unit/risk/test_var_monte_carlo.py::test_reproducible_with_same_seed`.
+
+### Minimum sample size
+
+Two independent floors apply: `validate_parametric_sample_size` on the
+*real* data (`n >= 2`, to fit `mu`/`sigma` — same as the Parametric
+method), and `validate_simulation_count` on `n_simulations`
+(`n_simulations >= ceil(1 / (1 - alpha))`, the same formula as Historical
+VaR's `min_required_observations`, applied to the simulated sample instead
+of the real one). The second floor is defensive rather than a real
+constraint in practice: the default `n_simulations` is far above it for
+any `alpha` in `(0, 1)`.
 
 ## Monte Carlo Expected Shortfall
 
-TODO (M4): tail-mean over simulated P&L.
+```
+ES_alpha = max(0, -mean(simulated_returns[simulated_returns <= Quantile(simulated_returns, 1 - alpha)])) * position_value
+```
+
+The same tail-mean construction as Historical ES, applied to the simulated
+sample instead of the real one. Implemented in
+`risk/expected_shortfall.py::monte_carlo_expected_shortfall`.
+
+Calling `monte_carlo_var` and `monte_carlo_expected_shortfall` with the
+same `seed`, `n_simulations`, and input data draws the *identical*
+simulated array in both (same `mu`, `sigma`, and RNG seed), so the
+`ES >= VaR` invariant holds exactly at a given `alpha` — by the same
+tail-is-a-subset argument as the historical method — rather than only
+holding in expectation across independent simulation runs.
 
 ## Time horizon scaling
 

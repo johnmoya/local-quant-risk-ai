@@ -3,7 +3,7 @@
 This module gains a function per method as each is implemented:
 - historical_expected_shortfall (M2, below): empirical tail mean.
 - parametric_expected_shortfall (M3, below): closed-form normal ES.
-- monte_carlo_expected_shortfall (M4): tail mean over simulated P&L.
+- monte_carlo_expected_shortfall (M4, below): tail mean over simulated P&L.
 
 All non-negative, same sign convention as VaR (see docs/math_reference.md).
 """
@@ -12,15 +12,19 @@ from __future__ import annotations
 
 from datetime import date as date_type
 
+import numpy as np
 from scipy.stats import norm
 
 from quant_risk_ai.data.schemas import AssetReturnSeries
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from quant_risk_ai.risk.stats_utils import (
+    DEFAULT_N_SIMULATIONS,
+    sample_normal,
     signed_loss_magnitude,
     validate_alpha,
     validate_parametric_sample_size,
     validate_sample_size,
+    validate_simulation_count,
 )
 
 
@@ -118,4 +122,66 @@ def parametric_expected_shortfall(
         asset_ids=[asset_returns.asset_id],
         currency=asset_returns.currency,
         metadata={"return_method": asset_returns.method.value, "mu": mu, "sigma": sigma},
+    )
+
+
+def monte_carlo_expected_shortfall(
+    asset_returns: AssetReturnSeries,
+    *,
+    alpha: float,
+    position_value: float,
+    seed: int,
+    n_simulations: int = DEFAULT_N_SIMULATIONS,
+    horizon_days: int = 1,
+    as_of: date_type | None = None,
+) -> RiskResult:
+    """Monte Carlo Expected Shortfall: the mean of the simulated returns at
+    or below the (1 - alpha) empirical quantile of the simulated
+    distribution — the same tail-mean construction as
+    `historical_expected_shortfall`, applied to a simulated sample from
+    Normal(mu, sigma^2) (see `risk/var_monte_carlo.py` for the shared
+    sampling methodology and the reproducibility requirement on `seed`).
+
+    Calling this and `var_monte_carlo.monte_carlo_var` with the same
+    `seed`, `n_simulations`, and input data draws the identical simulated
+    array in both, so `ES >= VaR` holds by the same exact-tail-superset
+    argument as the historical method, not just approximately.
+
+    Raises:
+        ValueError: alpha is not in the open interval (0, 1).
+        InsufficientDataError: fewer than 2 real observations are available
+            to fit mu/sigma.
+        InsufficientSampleSizeError: n_simulations is too small to back the
+            requested quantile with at least one simulated tail draw.
+    """
+    validate_alpha(alpha)
+    returns = asset_returns.returns
+    validate_parametric_sample_size(len(returns))
+    validate_simulation_count(n_simulations, alpha)
+
+    mu = returns.mean()
+    sigma = returns.std(ddof=1)
+    simulated_returns = sample_normal(mu, sigma, n_simulations, seed)
+    cutoff = np.quantile(simulated_returns, 1.0 - alpha)
+    tail = simulated_returns[simulated_returns <= cutoff]
+    tail_mean = tail.mean()
+    loss_magnitude = signed_loss_magnitude(tail_mean, position_value)
+
+    return RiskResult(
+        method=RiskMethod.MONTE_CARLO,
+        metric=RiskMetric.EXPECTED_SHORTFALL,
+        value=loss_magnitude,
+        confidence_level=alpha,
+        horizon_days=horizon_days,
+        portfolio_value=position_value,
+        as_of=as_of if as_of is not None else returns.index[-1].date(),
+        n_observations=len(returns),
+        asset_ids=[asset_returns.asset_id],
+        currency=asset_returns.currency,
+        metadata={
+            "return_method": asset_returns.method.value,
+            "n_simulations": n_simulations,
+            "seed": seed,
+            "tail_size": len(tail),
+        },
     )

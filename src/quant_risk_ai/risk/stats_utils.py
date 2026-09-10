@@ -16,6 +16,8 @@ from __future__ import annotations
 
 import math
 
+import numpy as np
+
 from quant_risk_ai.core.exceptions import InsufficientDataError, InsufficientSampleSizeError
 
 
@@ -88,3 +90,47 @@ def validate_parametric_sample_size(n_observations: int) -> None:
             f"to estimate a sample standard deviation for parametric VaR/ES "
             f"(got {n_observations})."
         )
+
+
+DEFAULT_N_SIMULATIONS = 100_000
+
+
+def validate_simulation_count(n_simulations: int, alpha: float) -> None:
+    """Same floor as `validate_sample_size`, applied to a Monte Carlo
+    simulation count instead of real historical observations: the
+    (1 - alpha) empirical quantile of the *simulated* distribution needs at
+    least one simulated draw in the tail to be meaningful. In practice this
+    is a defensive floor, not a real constraint — the default
+    `DEFAULT_N_SIMULATIONS` is far above it for any alpha in (0, 1); it
+    only bites if a caller passes an unusually small `n_simulations`.
+    """
+    required = min_required_observations(alpha)
+    if n_simulations < required:
+        raise InsufficientSampleSizeError(
+            f"At least {required} simulations are required for a "
+            f"{alpha:.0%} Monte Carlo VaR/ES (got {n_simulations}). This is "
+            f"the floor for the simulated quantile to be backed by at least "
+            f"one simulated tail draw; production use typically wants far "
+            f"more (e.g. {DEFAULT_N_SIMULATIONS:,}) for a stable estimate."
+        )
+
+
+def sample_normal(mu: float, sigma: float, n_simulations: int, seed: int) -> np.ndarray:
+    """Draw `n_simulations` samples from Normal(mu, sigma^2) via a seeded
+    RNG — deterministic for a given seed, so two calls with the same
+    arguments always produce the exact same array.
+
+    v1 is single-asset, so this is just `mu + sigma * Z`: the "Cholesky
+    factor" of a 1x1 covariance matrix is sigma itself. M11 (multi-asset)
+    generalizes this to `mu + L @ Z`, where `L` is the Cholesky factor of
+    the full covariance matrix and `Z` is a standard multivariate normal
+    draw, without changing this function's call shape — only its
+    internals.
+
+    This signature — `(mu, sigma, n_simulations, seed) -> np.ndarray` — is
+    deliberately pinned so a future `sample_bootstrap(returns,
+    n_simulations, seed)` (see the pluggable-sampler design note above)
+    can be selected by var_monte_carlo.py the same way.
+    """
+    rng = np.random.default_rng(seed)
+    return mu + sigma * rng.standard_normal(n_simulations)
