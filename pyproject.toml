@@ -54,3 +54,10 @@ explicit_package_bases = true
 warn_unused_ignores = true
 warn_redundant_casts = true
 check_untyped_defs = true
+
+[[tool.mypy.overrides]]
+# scipy ships no py.typed marker (unlike pandas, covered by pandas-stubs
+# above), so mypy can't see into scipy.stats (norm.ppf/pdf, used starting
+# M3's parametric VaR/ES) without this.
+module = "scipy.*"
+ignore_missing_imports = true

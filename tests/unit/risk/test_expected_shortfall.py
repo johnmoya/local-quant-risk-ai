@@ -1,14 +1,19 @@
-"""Tests for risk/expected_shortfall.py (historical/empirical method, M2).
+"""Tests for risk/expected_shortfall.py.
 
-M3 (parametric) and M4 (Monte Carlo) add their own
-test_parametric_es_* / test_monte_carlo_es_* functions to this same file
-alongside their compute functions in expected_shortfall.py.
+M4 (Monte Carlo) adds its own test_monte_carlo_es_* functions to this same
+file alongside its compute function in expected_shortfall.py.
 """
 
-import pytest
+import math
 
-from quant_risk_ai.core.exceptions import InsufficientSampleSizeError
-from quant_risk_ai.risk.expected_shortfall import historical_expected_shortfall
+import pytest
+from scipy.stats import norm
+
+from quant_risk_ai.core.exceptions import InsufficientDataError, InsufficientSampleSizeError
+from quant_risk_ai.risk.expected_shortfall import (
+    historical_expected_shortfall,
+    parametric_expected_shortfall,
+)
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from tests.unit.risk._helpers import make_asset_returns
 
@@ -65,5 +70,77 @@ def test_zero_variance_negative_constant_returns_exact_es():
     asset_returns = make_asset_returns([-0.02] * 20)
 
     result = historical_expected_shortfall(asset_returns, alpha=0.90, position_value=1_000.0)
+
+    assert result.value == pytest.approx(20.0)
+
+
+# --- Parametric (M3) ---
+
+
+def test_parametric_known_answer():
+    # Same dataset as test_var_parametric.py::test_known_answer_var: mu=0.0,
+    # sample std (ddof=1) = sqrt(0.00025). Reference value computed
+    # independently via scipy.stats.norm to check the function's assembly
+    # of mu/sigma/z/floor/scaling, not scipy's own math.
+    values = [-0.02, -0.01, 0.0, 0.01, 0.02]
+    asset_returns = make_asset_returns(values)
+    alpha = 0.95
+    position_value = 10_000.0
+
+    mu = sum(values) / len(values)
+    sigma = math.sqrt(0.00025)
+    z = norm.ppf(1.0 - alpha)
+    expected_tail_mean = mu - sigma * norm.pdf(z) / (1.0 - alpha)
+    expected_value = max(0.0, -expected_tail_mean) * position_value
+
+    result = parametric_expected_shortfall(
+        asset_returns, alpha=alpha, position_value=position_value
+    )
+
+    assert result.value == pytest.approx(expected_value)
+    assert result.method is RiskMethod.PARAMETRIC
+    assert result.metric is RiskMetric.EXPECTED_SHORTFALL
+
+
+def test_parametric_result_metadata_and_shape():
+    asset_returns = make_asset_returns([0.01, -0.02, 0.03, -0.04], asset_id="AAPL", currency="EUR")
+
+    result = parametric_expected_shortfall(asset_returns, alpha=0.95, position_value=1_000.0)
+
+    assert isinstance(result, RiskResult)
+    assert result.asset_ids == ["AAPL"]
+    assert result.currency == "EUR"
+    assert result.n_observations == 4
+    assert "mu" in result.metadata
+    assert "sigma" in result.metadata
+
+
+@pytest.mark.parametrize("bad_alpha", [0.0, 1.0, -0.1, 1.1])
+def test_parametric_alpha_out_of_range_rejected(bad_alpha):
+    asset_returns = make_asset_returns([0.01, -0.02, 0.03, -0.04])
+
+    with pytest.raises(ValueError, match="alpha"):
+        parametric_expected_shortfall(asset_returns, alpha=bad_alpha, position_value=1_000.0)
+
+
+def test_parametric_insufficient_sample_size_raises():
+    asset_returns = make_asset_returns([0.01])
+
+    with pytest.raises(InsufficientDataError, match="2"):
+        parametric_expected_shortfall(asset_returns, alpha=0.95, position_value=1_000.0)
+
+
+def test_parametric_es_never_negative_when_tail_is_positive():
+    asset_returns = make_asset_returns([0.049, 0.05, 0.051, 0.05, 0.0505] * 4)
+
+    result = parametric_expected_shortfall(asset_returns, alpha=0.90, position_value=1_000.0)
+
+    assert result.value == 0.0
+
+
+def test_parametric_zero_variance_negative_constant_returns_exact_es():
+    asset_returns = make_asset_returns([-0.02] * 20)
+
+    result = parametric_expected_shortfall(asset_returns, alpha=0.90, position_value=1_000.0)
 
     assert result.value == pytest.approx(20.0)

@@ -1,9 +1,9 @@
 """Reusable cross-method invariant checks for VaR/ES results.
 
-Written once against the historical method (M2). M3 (parametric) and M4
-(Monte Carlo) should reuse these two assertions against their own
-compute_var/compute_es functions rather than re-deriving the checks —
-see tests/unit/risk/test_var_es_invariants.py for the current usage.
+Written once against the historical method (M2), reused as-is for the
+parametric method (M3). M4 (Monte Carlo) should add its own entry to
+METHODS in tests/unit/risk/test_var_es_invariants.py rather than
+re-deriving these checks.
 
 Not collected by pytest (module name doesn't match test_*.py).
 """
