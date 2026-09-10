@@ -17,10 +17,10 @@ scope decisions and milestones.
 
 ## Status
 
-Currently at **M2** (Historical VaR + empirical Expected Shortfall). The
-data layer (M1) and the historical risk methods are implemented and tested;
-no API or LLM integration yet — see `docs/roadmap.md` for what's next (M3:
-Parametric VaR/ES).
+Currently at **M3** (Parametric VaR + closed-form Expected Shortfall). The
+data layer (M1) and the Historical and Parametric risk methods are
+implemented and tested; no API or LLM integration yet — see
+`docs/roadmap.md` for what's next (M4: Monte Carlo VaR/ES).
 
 ## Project layout
 

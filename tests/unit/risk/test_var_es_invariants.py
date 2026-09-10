@@ -1,23 +1,32 @@
 """Cross-method invariants for VaR/ES, exercised against the historical
-method (M2). M3 (parametric) and M4 (Monte Carlo) should add their own
-parametrize entries here, reusing _invariants.assert_es_at_least_var /
-assert_var_monotonic_in_alpha against their own compute functions, rather
+(M2) and parametric (M3) methods. M4 (Monte Carlo) should add its own
+entry to METHODS here, reusing _invariants.assert_es_at_least_var /
+assert_var_monotonic_in_alpha against its own compute functions, rather
 than re-deriving the checks.
 
 All synthetic datasets use n=300 so every alpha in ALPHAS (including 0.99,
-which needs >= 100 observations) is valid without a separate per-dataset
-sample-size case.
+which needs >= 100 observations for the historical method) is valid
+without a separate per-dataset sample-size case.
 """
 
 import numpy as np
 import pytest
 
-from quant_risk_ai.risk.expected_shortfall import historical_expected_shortfall
+from quant_risk_ai.risk.expected_shortfall import (
+    historical_expected_shortfall,
+    parametric_expected_shortfall,
+)
 from quant_risk_ai.risk.var_historical import historical_var
+from quant_risk_ai.risk.var_parametric import parametric_var
 from tests.unit.risk._helpers import make_asset_returns
 from tests.unit.risk._invariants import assert_es_at_least_var, assert_var_monotonic_in_alpha
 
 ALPHAS = [0.90, 0.95, 0.99]
+
+METHODS = {
+    "historical": (historical_var, historical_expected_shortfall),
+    "parametric": (parametric_var, parametric_expected_shortfall),
+}
 
 _N = 300
 _normal_rng = np.random.default_rng(42)
@@ -33,24 +42,27 @@ SYNTHETIC_DATASETS: dict[str, list[float]] = {
 }
 
 
+@pytest.mark.parametrize("method_name", sorted(METHODS))
 @pytest.mark.parametrize("dataset_name", sorted(SYNTHETIC_DATASETS))
 @pytest.mark.parametrize("alpha", ALPHAS)
-def test_es_at_least_var(dataset_name, alpha):
+def test_es_at_least_var(alpha, dataset_name, method_name):
+    var_func, es_func = METHODS[method_name]
     asset_returns = make_asset_returns(SYNTHETIC_DATASETS[dataset_name])
 
-    var_result = historical_var(asset_returns, alpha=alpha, position_value=1.0)
-    es_result = historical_expected_shortfall(asset_returns, alpha=alpha, position_value=1.0)
+    var_result = var_func(asset_returns, alpha=alpha, position_value=1.0)
+    es_result = es_func(asset_returns, alpha=alpha, position_value=1.0)
 
     assert_es_at_least_var(var_result, es_result)
 
 
+@pytest.mark.parametrize("method_name", sorted(METHODS))
 @pytest.mark.parametrize("dataset_name", sorted(SYNTHETIC_DATASETS))
-def test_var_monotonic_in_alpha(dataset_name):
+def test_var_monotonic_in_alpha(dataset_name, method_name):
+    var_func, _ = METHODS[method_name]
     asset_returns = make_asset_returns(SYNTHETIC_DATASETS[dataset_name])
 
     var_by_alpha = {
-        alpha: historical_var(asset_returns, alpha=alpha, position_value=1.0).value
-        for alpha in ALPHAS
+        alpha: var_func(asset_returns, alpha=alpha, position_value=1.0).value for alpha in ALPHAS
     }
 
     assert_var_monotonic_in_alpha(var_by_alpha)

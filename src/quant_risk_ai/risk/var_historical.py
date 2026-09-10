@@ -17,7 +17,11 @@ from datetime import date as date_type
 
 from quant_risk_ai.data.schemas import AssetReturnSeries
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
-from quant_risk_ai.risk.stats_utils import validate_alpha, validate_sample_size
+from quant_risk_ai.risk.stats_utils import (
+    signed_loss_magnitude,
+    validate_alpha,
+    validate_sample_size,
+)
 
 
 def historical_var(
@@ -44,7 +48,7 @@ def historical_var(
     validate_sample_size(len(returns), alpha)
 
     quantile = returns.quantile(1.0 - alpha)
-    loss_magnitude = max(0.0, -quantile) * position_value
+    loss_magnitude = signed_loss_magnitude(quantile, position_value)
 
     return RiskResult(
         method=RiskMethod.HISTORICAL,

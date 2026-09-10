@@ -140,12 +140,68 @@ several synthetic datasets in `tests/unit/risk/test_var_es_invariants.py`.
 
 ## Parametric (Variance-Covariance) VaR
 
-TODO (M3): normal-distribution assumption, closed-form derivation, and its
-known limitation under fat tails / skew.
+```
+VaR_alpha = max(0, -(mu + sigma * Phi^-1(1 - alpha))) * position_value
+```
+
+Returns are modeled as `Normal(mu, sigma^2)`, with `mu` and `sigma` the
+sample mean and sample standard deviation (`ddof=1`) of the return series.
+`Phi^-1` is the standard normal inverse CDF (`scipy.stats.norm.ppf`). This
+is the same "cutoff, then flip sign and floor at zero" shape as Historical
+VaR — only the way the `(1 - alpha)` return-distribution quantile is
+obtained changes: a closed form instead of an empirical order statistic.
+Implemented in `risk/var_parametric.py::parametric_var`.
+
+Same `max(0, ...)` floor and same reason as Historical VaR: a series with
+high enough `mu` relative to `sigma` can have a positive `(1 - alpha)`
+quantile, which the naive `-quantile` would report as negative.
+
+**Known limitation**: the normal assumption has no skew and thin tails.
+Real return series are typically fat-tailed (excess kurtosis) and often
+negatively skewed, so parametric VaR systematically *understates* tail
+risk relative to Historical and Monte Carlo VaR on the same data — it is
+not a substitute for them, only a fast, smooth cross-check. See
+`tests/unit/risk/test_var_es_invariants.py`, which runs the same
+`ES >= VaR` and `VaR` monotonic-in-`alpha` invariants against this method.
+
+**Worked example**: `mu=0.0`, `sigma=0.02`, `alpha=0.95`,
+`position_value=10_000`. `Phi^-1(0.05) ≈ -1.644854`, so
+`quantile ≈ 0 + 0.02 * (-1.644854) = -0.0328971`, giving
+`VaR ≈ 0.0328971 * 10_000 ≈ 328.97`.
+
+### Minimum sample size
+
+`n >= 2` — the point below which a sample standard deviation (`ddof=1`)
+isn't defined. Unlike Historical VaR's `min_required_observations(alpha)`,
+this floor doesn't depend on `alpha`: the parametric method summarizes the
+whole series into `mu`/`sigma` rather than reading a specific tail
+observation. Fewer than 2 observations raises `InsufficientDataError`. See
+`risk/stats_utils.py::validate_parametric_sample_size`.
 
 ## Parametric Expected Shortfall
 
-TODO (M3): closed-form normal ES derivation.
+```
+ES_alpha = max(0, -mu + sigma * phi(z) / (1 - alpha)) * position_value
+where z = Phi^-1(1 - alpha)
+```
+
+`phi` is the standard normal PDF (`scipy.stats.norm.pdf`). This is the
+closed-form tail mean of a `Normal(mu, sigma^2)` distribution below its
+`(1 - alpha)` quantile: `E[R | R <= quantile] = mu - sigma * phi(z) / (1 -
+alpha)`, negated and floored at zero for the same sign-convention reason
+as every other VaR/ES function. Implemented in
+`risk/expected_shortfall.py::parametric_expected_shortfall`.
+
+Because `phi` is symmetric (`phi(z) = phi(-z)`), this formula is
+numerically identical whether `z` is taken as `Phi^-1(1 - alpha)` (as
+above) or `Phi^-1(alpha)` — both conventions appear in textbooks.
+
+**Worked example**: same inputs as the Parametric VaR example above
+(`mu=0.0`, `sigma=0.02`, `alpha=0.95`, `position_value=10_000`).
+`phi(-1.644854) ≈ 0.103155`, so
+`tail_mean ≈ 0 - 0.02 * 0.103155 / 0.05 ≈ -0.0412619`, giving
+`ES ≈ 0.0412619 * 10_000 ≈ 412.62` — larger than the `VaR ≈ 328.97` figure
+from the same inputs, the `ES >= VaR` invariant again.
 
 ## Monte Carlo VaR
 

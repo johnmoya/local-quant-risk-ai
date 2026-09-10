@@ -1,6 +1,5 @@
-"""Shared statistical primitives used across the VaR/ES modules
-(quantile-related validation now; annualization/covariance helpers land
-when parametric/Monte Carlo methods need them in M3/M4), so the
+"""Shared statistical primitives used across the VaR/ES modules (quantile
+and sample-size validation, and the sign-convention floor), so the
 method-specific modules don't duplicate math.
 
 Pluggable simulation-distribution hook (design note for M4 / future work):
@@ -17,7 +16,7 @@ from __future__ import annotations
 
 import math
 
-from quant_risk_ai.core.exceptions import InsufficientSampleSizeError
+from quant_risk_ai.core.exceptions import InsufficientDataError, InsufficientSampleSizeError
 
 
 def validate_alpha(alpha: float) -> None:
@@ -54,4 +53,38 @@ def validate_sample_size(n_observations: int, alpha: float) -> None:
             f"{alpha:.0%} VaR/ES (got {n_observations}). This is the floor for "
             f"the requested quantile to be backed by at least one real tail "
             f"observation; production use typically wants substantially more."
+        )
+
+
+def signed_loss_magnitude(distribution_value: float, position_value: float) -> float:
+    """Convert a return-space value (an empirical quantile cutoff or tail
+    mean, or their parametric/Monte Carlo equivalents) into a non-negative
+    loss magnitude in currency terms, per the project's sign convention
+    (see docs/math_reference.md).
+
+    Floors at zero: a positive `distribution_value` means "no loss at this
+    confidence level / in this tail," which must not produce a negative
+    RiskResult.value — that's rejected by RiskResult's own invariant, so
+    every VaR/ES function needs this same floor at the point it converts
+    return-space math into a reported value.
+    """
+    return max(0.0, -distribution_value) * position_value
+
+
+MIN_PARAMETRIC_OBSERVATIONS = 2
+
+
+def validate_parametric_sample_size(n_observations: int) -> None:
+    """The parametric method needs at least 2 observations for a sample
+    standard deviation (ddof=1) to be defined at all. Unlike
+    `validate_sample_size`'s alpha-dependent floor (which exists to back
+    an empirical quantile with a real tail observation), this requirement
+    is fixed and independent of alpha — the parametric method doesn't read
+    the tail directly, only mu and sigma.
+    """
+    if n_observations < MIN_PARAMETRIC_OBSERVATIONS:
+        raise InsufficientDataError(
+            f"At least {MIN_PARAMETRIC_OBSERVATIONS} observations are required "
+            f"to estimate a sample standard deviation for parametric VaR/ES "
+            f"(got {n_observations})."
         )
