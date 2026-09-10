@@ -1,31 +1,47 @@
 """Cross-method invariants for VaR/ES, exercised against the historical
-(M2) and parametric (M3) methods. M4 (Monte Carlo) should add its own
-entry to METHODS here, reusing _invariants.assert_es_at_least_var /
-assert_var_monotonic_in_alpha against its own compute functions, rather
-than re-deriving the checks.
+(M2), parametric (M3), and Monte Carlo (M4) methods, reusing
+_invariants.assert_es_at_least_var / assert_var_monotonic_in_alpha against
+each method's own compute functions rather than re-deriving the checks.
 
 All synthetic datasets use n=300 so every alpha in ALPHAS (including 0.99,
 which needs >= 100 observations for the historical method) is valid
 without a separate per-dataset sample-size case.
+
+Monte Carlo entries are pinned to a fixed seed via functools.partial: with
+the same seed, n_simulations, mu, and sigma, `sample_normal` returns the
+identical array regardless of alpha, so the VaR and ES calls at a given
+alpha see the same simulated sample (making `ES >= VaR` exact, not just
+statistically likely) and the per-alpha quantiles are genuine order
+statistics of one fixed array (making monotonicity exact too).
 """
+
+from functools import partial
 
 import numpy as np
 import pytest
 
 from quant_risk_ai.risk.expected_shortfall import (
     historical_expected_shortfall,
+    monte_carlo_expected_shortfall,
     parametric_expected_shortfall,
 )
 from quant_risk_ai.risk.var_historical import historical_var
+from quant_risk_ai.risk.var_monte_carlo import monte_carlo_var
 from quant_risk_ai.risk.var_parametric import parametric_var
 from tests.unit.risk._helpers import make_asset_returns
 from tests.unit.risk._invariants import assert_es_at_least_var, assert_var_monotonic_in_alpha
 
 ALPHAS = [0.90, 0.95, 0.99]
 
+_MONTE_CARLO_SEED = 42
+
 METHODS = {
     "historical": (historical_var, historical_expected_shortfall),
     "parametric": (parametric_var, parametric_expected_shortfall),
+    "monte_carlo": (
+        partial(monte_carlo_var, seed=_MONTE_CARLO_SEED),
+        partial(monte_carlo_expected_shortfall, seed=_MONTE_CARLO_SEED),
+    ),
 }
 
 _N = 300
