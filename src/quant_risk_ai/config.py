@@ -1,6 +1,24 @@
 """Central runtime configuration (env-driven settings for the API and the
 Ollama client: host/port, model name, timeouts, default confidence levels).
 
-Implemented starting M6/M7 once there is a service and an LLM client to
-configure.
+M6 scope: request-default values for the risk endpoints (alpha, horizon,
+Monte Carlo simulation count, backtest test confidence), each overridable
+via an environment variable so a deployment can change defaults without a
+code change. M7 will extend this with Ollama client settings (host, model,
+timeout) once there's a client to configure.
 """
+
+from __future__ import annotations
+
+import os
+
+from quant_risk_ai.risk.stats_utils import DEFAULT_N_SIMULATIONS as _ENGINE_DEFAULT_N_SIMULATIONS
+
+DEFAULT_ALPHA: float = float(os.environ.get("QUANT_RISK_AI_DEFAULT_ALPHA", "0.99"))
+DEFAULT_HORIZON_DAYS: int = int(os.environ.get("QUANT_RISK_AI_DEFAULT_HORIZON_DAYS", "1"))
+DEFAULT_N_SIMULATIONS: int = int(
+    os.environ.get("QUANT_RISK_AI_DEFAULT_N_SIMULATIONS", str(_ENGINE_DEFAULT_N_SIMULATIONS))
+)
+DEFAULT_TEST_CONFIDENCE: float = float(
+    os.environ.get("QUANT_RISK_AI_DEFAULT_TEST_CONFIDENCE", "0.95")
+)
