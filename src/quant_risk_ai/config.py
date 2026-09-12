@@ -4,8 +4,8 @@ Ollama client: host/port, model name, timeouts, default confidence levels).
 M6 scope: request-default values for the risk endpoints (alpha, horizon,
 Monte Carlo simulation count, backtest test confidence), each overridable
 via an environment variable so a deployment can change defaults without a
-code change. M7 will extend this with Ollama client settings (host, model,
-timeout) once there's a client to configure.
+code change. M7 adds the Ollama client settings below (host, model,
+timeout) now that there's a client to configure.
 """
 
 from __future__ import annotations
@@ -21,4 +21,10 @@ DEFAULT_N_SIMULATIONS: int = int(
 )
 DEFAULT_TEST_CONFIDENCE: float = float(
     os.environ.get("QUANT_RISK_AI_DEFAULT_TEST_CONFIDENCE", "0.95")
+)
+
+OLLAMA_BASE_URL: str = os.environ.get("QUANT_RISK_AI_OLLAMA_BASE_URL", "http://localhost:11434")
+OLLAMA_MODEL: str = os.environ.get("QUANT_RISK_AI_OLLAMA_MODEL", "qwen3:8b")
+OLLAMA_TIMEOUT_SECONDS: float = float(
+    os.environ.get("QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS", "60")
 )

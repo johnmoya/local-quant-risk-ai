@@ -154,3 +154,20 @@ class TrafficLightResultResponse(BaseModel):
     n_violations: int
     cumulative_probability: float
     zone: TrafficLightZone
+
+
+class RiskResultInput(RiskResultResponse):
+    """Same shape as RiskResultResponse, named for its role as a request
+    body: POST /explain takes a previously computed RiskResult back as
+    input (the API is stateless — it never stores results server-side),
+    and re-validates it via RiskResult's own __post_init__ invariants on
+    the way in (see api/dependencies.py::build_risk_result).
+    """
+
+
+class ExplainResponse(BaseModel):
+    """POST /explain's response: the numeric-consistency-checked
+    natural-language explanation (see quant_risk_ai.llm.explain).
+    """
+
+    explanation: str

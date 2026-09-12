@@ -46,6 +46,14 @@ src = ["src", "tests"]
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
 
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's `Depends(...)` (and Query/Path/etc.) as a parameter default is
+# the framework's own dependency-injection idiom, not the mutable-default
+# footgun B008 exists to catch (fastapi.Depends since M7's /explain
+# endpoint, added here rather than a per-line `# noqa` so future endpoints
+# don't need one either).
+extend-immutable-calls = ["fastapi.Depends"]
+
 [tool.mypy]
 python_version = "3.11"
 mypy_path = "src"
