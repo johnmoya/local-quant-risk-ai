@@ -281,6 +281,122 @@ approximation (i.i.d., no autocorrelation) rather than exact.
 
 ## Backtesting
 
-TODO (M5): Kupiec POF test, Christoffersen independence and conditional
-coverage tests, Basel traffic-light zones, violation ratio — definitions and
-worked examples.
+All four backtests below operate on a **violation series**: a boolean,
+date-indexed series that is `True` on each day the realized loss exceeded
+that day's VaR estimate. `risk/backtesting.py::compute_violations` builds
+it once from `var_estimates` and `realized_returns` (validating they share
+the same index), and every test below takes that same series as input, so
+they always agree on which days counted as exceptions.
+
+Kupiec and both Christoffersen tests are chi-squared likelihood-ratio
+tests. All three share the same `-2 * (logL(H0) - logL(unconstrained))`
+shape and a `LikelihoodRatioTestResult` (statistic, degrees of freedom,
+p-value, `reject_null` at a chosen `test_confidence`, default 95%).
+`test_confidence` (strictness of the test) is independent of `alpha` (the
+VaR confidence level being backtested) — Kupiec and conditional coverage
+need both.
+
+Log-likelihoods use `scipy.special.xlogy(x, y)` (`= x * log(y)`, but `0`
+when `x == 0` even if `y == 0`) instead of writing `x * math.log(y)`
+directly, so the zero-violations and all-violations edge cases evaluate to
+a finite statistic instead of raising `ValueError`/producing `nan` from
+`log(0)`.
+
+### Violation ratio
+
+```
+violation_ratio = n_violations / (n_observations * (1 - alpha))
+```
+
+Observed vs. expected violation count. `1.0` is perfect calibration; `> 1`
+means the VaR method under-predicts risk; `< 1` means it's overly
+conservative. A diagnostic, not a hypothesis test — no p-value. Implemented
+in `risk/backtesting.py::violation_ratio`.
+
+**Worked example**: `n=100`, `alpha=0.95` (expected rate 5%). `5`
+violations gives `ratio = 5 / (100 * 0.05) = 1.0`; `10` violations gives
+`ratio = 2.0` (twice the expected exception rate).
+
+### Kupiec proportion-of-failures (POF) test
+
+```
+LR_pof = -2 * [xlogy(n-x, 1-p) + xlogy(x, p)
+               - xlogy(n-x, 1-x/n) - xlogy(x, x/n)]
+```
+where `p = 1 - alpha`, `x` = violation count, `n` = sample size.
+`LR_pof ~ chi2(1)` under H0 (`n=1`).
+
+H0: the true violation probability equals `p`. Tests only the *rate*, not
+clustering — see the independence test below for that. Implemented in
+`risk/backtesting.py::kupiec_pof_test`.
+
+**Worked example**: `n=20`, `x=4` violations, `alpha=0.90` (`p=0.10`,
+`p_hat=x/n=0.20`). `LR_pof ≈ 1.776` — below the `chi2(1)` 95%-critical
+value of `3.841`, so `reject_null=False` at `test_confidence=0.95`: not
+enough evidence to say the VaR model is miscalibrated at this sample size.
+If instead `x=2` (`p_hat=0.10=p` exactly), `LR_pof = 0` exactly — the
+observed rate matches the null rate with no divergence to explain.
+
+### Christoffersen independence test
+
+Build the day-to-day Markov transition counts of the violation indicator:
+`n_ij` = number of days where yesterday's state was `i` and today's is
+`j` (`0` = no violation, `1` = violation). Then:
+
+```
+pi_01 = n01 / (n00 + n01)      pi_11 = n11 / (n10 + n11)
+pi    = (n01 + n11) / (n00 + n01 + n10 + n11)
+
+LR_ind = -2 * [xlogy(n00+n10, 1-pi) + xlogy(n01+n11, pi)
+               - xlogy(n00, 1-pi01) - xlogy(n01, pi01)
+               - xlogy(n10, 1-pi11) - xlogy(n11, pi11)]
+```
+`LR_ind ~ chi2(1)` under H0. When a denominator (`n00+n01` or `n10+n11`)
+is zero, the corresponding `pi` is set to `0.0` by convention — its
+`xlogy` coefficient is also zero in that case, so the choice doesn't
+affect the result.
+
+H0: violations are serially independent (not clustered). A VaR model with
+the *correct* overall violation rate that fails only in clusters (e.g.
+every exception in one volatile week) is just as dangerous as one with the
+wrong rate, and Kupiec alone can't see it — this test can. Does not depend
+on `alpha`. Implemented in
+`risk/backtesting.py::christoffersen_independence_test`.
+
+**Worked example**: 20 days, violations `10` non-violations followed by
+`10` consecutive violations (maximally clustered). Transition counts:
+`n00=9, n01=1, n10=0, n11=9`. `pi01=0.1`, `pi11=1.0`, `pi≈0.526`.
+`LR_ind ≈ 19.79` — far above the `chi2(1)` 95%-critical value of `3.841`,
+correctly flagging the clustering despite (in isolation) any overall rate.
+
+### Christoffersen conditional coverage test
+
+```
+LR_cc = LR_pof + LR_ind
+```
+`LR_cc ~ chi2(2)` under the joint H0 (correct rate **and** independent).
+Exactly the sum of the two component statistics computed on the same
+violation series — not a separate derivation. Implemented in
+`risk/backtesting.py::christoffersen_conditional_coverage_test`; the
+additivity is pinned down by
+`tests/unit/risk/test_backtesting.py::test_conditional_coverage_is_sum_of_components`.
+
+### Basel traffic-light zones
+
+```
+cumulative_probability = P(X <= n_violations), X ~ Binomial(n_observations, 1 - alpha)
+
+zone = green   if cumulative_probability < 0.95
+       yellow  if 0.95 <= cumulative_probability < 0.9999
+       red     if cumulative_probability >= 0.9999
+```
+
+The standard Basel Committee boundaries (95% / 99.99%), expressed via the
+cumulative binomial probability rather than hardcoded violation counts —
+this generalizes to any `n_observations`/`alpha`, not just the canonical
+case below. Implemented in `risk/backtesting.py::traffic_light_zone`.
+
+**Worked example** (the canonical case, `n=250`, `alpha=0.99`, matching
+the textbook Basel table): `0-4` violations → green, `5-9` → yellow,
+`10+` → red. Pinned down for exactly these boundary counts in
+`tests/unit/risk/test_backtesting.py::test_traffic_light_canonical_basel_boundaries`.
