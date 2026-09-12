@@ -7,7 +7,11 @@ import pandas as pd
 import pytest
 from scipy.special import xlogy
 
-from quant_risk_ai.core.exceptions import DataValidationError, InsufficientDataError
+from quant_risk_ai.core.exceptions import (
+    DataValidationError,
+    InsufficientDataError,
+    InvalidParameterError,
+)
 from quant_risk_ai.risk.backtesting import (
     TrafficLightZone,
     christoffersen_conditional_coverage_test,
@@ -121,7 +125,7 @@ def test_kupiec_all_violations_does_not_raise():
 def test_kupiec_alpha_out_of_range_rejected(bad_alpha):
     violations = _violations([True, False, False, False])
 
-    with pytest.raises(ValueError, match="alpha"):
+    with pytest.raises(InvalidParameterError, match="alpha"):
         kupiec_pof_test(violations, alpha=bad_alpha)
 
 
@@ -218,5 +222,5 @@ def test_traffic_light_canonical_basel_boundaries(n_violations, expected_zone):
 def test_traffic_light_alpha_out_of_range_rejected():
     violations = _violations([True, False, False, False])
 
-    with pytest.raises(ValueError, match="alpha"):
+    with pytest.raises(InvalidParameterError, match="alpha"):
         traffic_light_zone(violations, alpha=1.5)

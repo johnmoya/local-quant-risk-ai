@@ -39,7 +39,7 @@ def historical_var(
     see the "Time horizon scaling" TODO in docs/math_reference.md.
 
     Raises:
-        ValueError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1).
         InsufficientSampleSizeError: fewer observations than
             stats_utils.min_required_observations(alpha) are available.
     """

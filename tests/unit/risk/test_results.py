@@ -12,6 +12,7 @@ from typing import Any
 
 import pytest
 
+from quant_risk_ai.core.exceptions import InvalidParameterError
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 
 _BASE_RESULT = RiskResult(
@@ -43,7 +44,7 @@ def test_valid_result_constructs():
 
 @pytest.mark.parametrize("bad_value", [-0.01, -100.0])
 def test_negative_value_is_rejected(bad_value):
-    with pytest.raises(ValueError, match="non-negative"):
+    with pytest.raises(InvalidParameterError, match="non-negative"):
         _make_result(value=bad_value)
 
 
@@ -55,22 +56,22 @@ def test_zero_value_is_allowed():
 
 @pytest.mark.parametrize("bad_conf", [0.0, 1.0, -0.5, 1.5])
 def test_confidence_level_out_of_range_is_rejected(bad_conf):
-    with pytest.raises(ValueError, match="confidence_level"):
+    with pytest.raises(InvalidParameterError, match="confidence_level"):
         _make_result(confidence_level=bad_conf)
 
 
 def test_non_positive_horizon_is_rejected():
-    with pytest.raises(ValueError, match="horizon_days"):
+    with pytest.raises(InvalidParameterError, match="horizon_days"):
         _make_result(horizon_days=0)
 
 
 def test_empty_asset_ids_is_rejected():
-    with pytest.raises(ValueError, match="asset_ids"):
+    with pytest.raises(InvalidParameterError, match="asset_ids"):
         _make_result(asset_ids=[])
 
 
 def test_expected_shortfall_metric_also_enforces_sign():
-    with pytest.raises(ValueError, match="non-negative"):
+    with pytest.raises(InvalidParameterError, match="non-negative"):
         _make_result(metric=RiskMetric.EXPECTED_SHORTFALL, value=-1.0)
 
 

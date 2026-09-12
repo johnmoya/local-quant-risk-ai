@@ -45,7 +45,7 @@ def parametric_var(
     docs/math_reference.md.
 
     Raises:
-        ValueError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1).
         InsufficientDataError: fewer than 2 observations are available.
     """
     validate_alpha(alpha)

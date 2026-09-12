@@ -23,6 +23,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
 
+from quant_risk_ai.core.exceptions import InvalidParameterError
+
 
 class RiskMethod(StrEnum):
     HISTORICAL = "historical"
@@ -59,15 +61,15 @@ class RiskResult:
 
     def __post_init__(self) -> None:
         if self.value < 0:
-            raise ValueError(
+            raise InvalidParameterError(
                 f"{self.metric.value} must be reported as a non-negative loss "
                 f"magnitude, got {self.value}"
             )
         if not (0.0 < self.confidence_level < 1.0):
-            raise ValueError(
+            raise InvalidParameterError(
                 f"confidence_level must be in (0, 1), got {self.confidence_level}"
             )
         if self.horizon_days <= 0:
-            raise ValueError(f"horizon_days must be positive, got {self.horizon_days}")
+            raise InvalidParameterError(f"horizon_days must be positive, got {self.horizon_days}")
         if not self.asset_ids:
-            raise ValueError("asset_ids must contain at least one identifier")
+            raise InvalidParameterError("asset_ids must contain at least one identifier")
