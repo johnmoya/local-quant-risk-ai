@@ -13,6 +13,19 @@ class QuantRiskAIError(Exception):
     """Base class for all project-specific exceptions."""
 
 
+class InvalidParameterError(QuantRiskAIError):
+    """A caller-supplied scalar parameter, or the resulting RiskResult
+    itself, fails a validation rule — e.g. alpha outside the open interval
+    (0, 1), a non-positive horizon_days, or a RiskResult invariant like a
+    negative value or empty asset_ids.
+
+    Distinct from DataValidationError (which is about the shape of a data
+    *series* — dates, columns) and from InsufficientDataError (which is
+    about *how much* data there is, not the validity of a single
+    parameter or an already-computed result).
+    """
+
+
 class DataValidationError(QuantRiskAIError):
     """Input data fails a structural validation check: duplicate dates,
     unparseable dates, missing required columns, or non-positive prices

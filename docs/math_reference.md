@@ -16,7 +16,8 @@ representing the magnitude of a potential loss**, regardless of method
   distribution would itself be negative before the sign flip.
 - This convention is enforced in code, not just documented: constructing a
   `RiskResult` (`src/quant_risk_ai/risk/results.py`) with a negative `value`
-  raises `ValueError`. See `tests/unit/risk/test_results.py::test_negative_value_is_rejected`
+  raises `InvalidParameterError`. See
+  `tests/unit/risk/test_results.py::test_negative_value_is_rejected`
   and `test_expected_shortfall_metric_also_enforces_sign` for the tests
   pinning this down.
 

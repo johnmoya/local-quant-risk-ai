@@ -59,7 +59,7 @@ def monte_carlo_var(
     docs/math_reference.md.
 
     Raises:
-        ValueError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1).
         InsufficientDataError: fewer than 2 real observations are available
             to fit mu/sigma.
         InsufficientSampleSizeError: n_simulations is too small to back the

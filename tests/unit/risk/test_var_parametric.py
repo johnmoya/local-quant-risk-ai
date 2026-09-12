@@ -5,7 +5,7 @@ import math
 import pytest
 from scipy.stats import norm
 
-from quant_risk_ai.core.exceptions import InsufficientDataError
+from quant_risk_ai.core.exceptions import InsufficientDataError, InvalidParameterError
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from quant_risk_ai.risk.var_parametric import parametric_var
 from tests.unit.risk._helpers import make_asset_returns
@@ -55,7 +55,7 @@ def test_result_metadata_and_shape():
 def test_alpha_out_of_range_rejected(bad_alpha):
     asset_returns = make_asset_returns([0.01, -0.02, 0.03, -0.04])
 
-    with pytest.raises(ValueError, match="alpha"):
+    with pytest.raises(InvalidParameterError, match="alpha"):
         parametric_var(asset_returns, alpha=bad_alpha, position_value=1_000.0)
 
 

@@ -50,7 +50,7 @@ def historical_expected_shortfall(
     produce a negative RiskResult.value.
 
     Raises:
-        ValueError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1).
         InsufficientSampleSizeError: fewer observations than
             stats_utils.min_required_observations(alpha) are available.
     """
@@ -97,7 +97,7 @@ def parametric_expected_shortfall(
     and the ES >= VaR check against parametric_var at the same alpha.
 
     Raises:
-        ValueError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1).
         InsufficientDataError: fewer than 2 observations are available.
     """
     validate_alpha(alpha)
@@ -148,7 +148,7 @@ def monte_carlo_expected_shortfall(
     argument as the historical method, not just approximately.
 
     Raises:
-        ValueError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1).
         InsufficientDataError: fewer than 2 real observations are available
             to fit mu/sigma.
         InsufficientSampleSizeError: n_simulations is too small to back the

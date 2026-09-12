@@ -3,7 +3,11 @@
 import numpy as np
 import pytest
 
-from quant_risk_ai.core.exceptions import InsufficientDataError, InsufficientSampleSizeError
+from quant_risk_ai.core.exceptions import (
+    InsufficientDataError,
+    InsufficientSampleSizeError,
+    InvalidParameterError,
+)
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from quant_risk_ai.risk.var_monte_carlo import monte_carlo_var
 from quant_risk_ai.risk.var_parametric import parametric_var
@@ -68,7 +72,7 @@ def test_result_metadata_and_shape():
 def test_alpha_out_of_range_rejected(bad_alpha):
     asset_returns = make_asset_returns([0.01, -0.02, 0.03, -0.04])
 
-    with pytest.raises(ValueError, match="alpha"):
+    with pytest.raises(InvalidParameterError, match="alpha"):
         monte_carlo_var(asset_returns, alpha=bad_alpha, position_value=1_000.0, seed=42)
 
 

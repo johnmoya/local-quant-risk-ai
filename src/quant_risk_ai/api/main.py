@@ -1,11 +1,15 @@
 """FastAPI app instantiation, router registration, and consistent error
 mapping from the risk engine's typed exceptions to HTTP responses.
 
-Every QuantRiskAIError (DataValidationError, InsufficientDataError,
-InsufficientSampleSizeError) and every plain ValueError raised by the risk
-engine (e.g. validate_alpha, RiskResult.__post_init__) map to a 422 with a
-clear `detail` message — never a raw 500 stack trace. Anything else is a
-genuine bug and is left to propagate as a 500.
+Every QuantRiskAIError subclass (DataValidationError, InsufficientDataError,
+InsufficientSampleSizeError, InvalidParameterError) maps to a 422 with a
+clear `detail` message — never a raw 500 stack trace. This is deliberately
+scoped to the project's own exception hierarchy, not a bare `ValueError`
+handler: catching every ValueError would also swallow unrelated bugs (a
+stray ValueError from a dependency, a genuine programming error) into a
+misleading 422 instead of surfacing them as the 500 they actually are.
+Anything that isn't a QuantRiskAIError is a genuine bug and is left to
+propagate as a 500.
 """
 
 from __future__ import annotations
@@ -28,9 +32,4 @@ app.include_router(backtest.router)
 
 @app.exception_handler(QuantRiskAIError)
 async def _quant_risk_ai_error_handler(request: Request, exc: QuantRiskAIError) -> JSONResponse:
-    return JSONResponse(status_code=422, content={"detail": str(exc)})
-
-
-@app.exception_handler(ValueError)
-async def _value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
     return JSONResponse(status_code=422, content={"detail": str(exc)})

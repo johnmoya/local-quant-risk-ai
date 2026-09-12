@@ -18,7 +18,11 @@ import math
 
 import numpy as np
 
-from quant_risk_ai.core.exceptions import InsufficientDataError, InsufficientSampleSizeError
+from quant_risk_ai.core.exceptions import (
+    InsufficientDataError,
+    InsufficientSampleSizeError,
+    InvalidParameterError,
+)
 
 
 def validate_alpha(alpha: float) -> None:
@@ -28,7 +32,7 @@ def validate_alpha(alpha: float) -> None:
     sense).
     """
     if not (0.0 < alpha < 1.0):
-        raise ValueError(f"alpha (confidence level) must be in (0, 1), got {alpha}")
+        raise InvalidParameterError(f"alpha (confidence level) must be in (0, 1), got {alpha}")
 
 
 def min_required_observations(alpha: float) -> int:
