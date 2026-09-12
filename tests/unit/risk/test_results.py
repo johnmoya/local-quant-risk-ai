@@ -6,27 +6,34 @@ These tests pin down two things agreed on before implementation started:
    without needing to change once that milestone lands.
 """
 
+from dataclasses import replace
 from datetime import date
+from typing import Any
 
 import pytest
 
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 
+_BASE_RESULT = RiskResult(
+    method=RiskMethod.HISTORICAL,
+    metric=RiskMetric.VAR,
+    value=1234.56,
+    confidence_level=0.99,
+    horizon_days=1,
+    portfolio_value=100_000.0,
+    as_of=date(2026, 8, 21),
+    n_observations=250,
+    asset_ids=["AAPL"],
+)
 
-def _make_result(**overrides) -> RiskResult:
-    defaults = dict(
-        method=RiskMethod.HISTORICAL,
-        metric=RiskMetric.VAR,
-        value=1234.56,
-        confidence_level=0.99,
-        horizon_days=1,
-        portfolio_value=100_000.0,
-        as_of=date(2026, 8, 21),
-        n_observations=250,
-        asset_ids=["AAPL"],
-    )
-    defaults.update(overrides)
-    return RiskResult(**defaults)
+
+def _make_result(**overrides: Any) -> RiskResult:
+    # dataclasses.replace re-invokes __init__ (so __post_init__'s
+    # validation still runs on the overridden fields). mypy's dataclass
+    # plugin gives `replace()` a precise per-field signature, so the
+    # overrides kwargs need to be `Any` (not `object`) for a single
+    # heterogeneous call site to satisfy every field's own type.
+    return replace(_BASE_RESULT, **overrides)
 
 
 def test_valid_result_constructs():

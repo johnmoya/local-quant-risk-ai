@@ -15,6 +15,7 @@ statistically likely) and the per-alpha quantiles are genuine order
 statistics of one fixed array (making monotonicity exact too).
 """
 
+from collections.abc import Callable
 from functools import partial
 
 import numpy as np
@@ -25,6 +26,7 @@ from quant_risk_ai.risk.expected_shortfall import (
     monte_carlo_expected_shortfall,
     parametric_expected_shortfall,
 )
+from quant_risk_ai.risk.results import RiskResult
 from quant_risk_ai.risk.var_historical import historical_var
 from quant_risk_ai.risk.var_monte_carlo import monte_carlo_var
 from quant_risk_ai.risk.var_parametric import parametric_var
@@ -35,7 +37,13 @@ ALPHAS = [0.90, 0.95, 0.99]
 
 _MONTE_CARLO_SEED = 42
 
-METHODS = {
+# Explicitly annotated because the three methods' compute functions don't
+# share an exact signature (Monte Carlo's take a required `seed`, bound
+# here via partial) — without this, mypy infers the dict's value type as
+# the join of three unrelated callables (effectively `object`), rather
+# than checking each against the common shape they're actually called
+# with here.
+METHODS: dict[str, tuple[Callable[..., RiskResult], Callable[..., RiskResult]]] = {
     "historical": (historical_var, historical_expected_shortfall),
     "parametric": (parametric_var, parametric_expected_shortfall),
     "monte_carlo": (
