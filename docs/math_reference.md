@@ -277,32 +277,65 @@ holding in expectation across independent simulation runs.
 
 ## Time horizon scaling
 
-**Not implemented in v1.** Every `risk/var_*.py` and
-`risk/expected_shortfall.py` function accepts `horizon_days` and records
-it on the resulting `RiskResult` (so callers and the API schema always
-carry it), but none of them currently scale the underlying return
-distribution by it — see the "`horizon_days` is recorded on the result
-but does not (yet) trigger any time-horizon scaling" note repeated in
-each function's docstring. A request with `horizon_days=10` today gets
-the *same* VaR/ES figure as `horizon_days=1` over the same input series;
-`horizon_days` is not yet a functional parameter, only a labeled one.
+**Implemented via √t scaling** (`risk/stats_utils.py::scale_to_horizon`),
+applied identically by all three VaR methods and all three Expected
+Shortfall methods, as the last step before constructing the `RiskResult`:
 
-The standard approach, when this is implemented, is **√t scaling**:
-`VaR_t = VaR_1 * sqrt(t)`, derived from assuming i.i.d., zero-autocorrelation
-daily returns — under that assumption a t-day return's variance is exactly
-`t` times the 1-day variance, so its standard deviation (and, for a fixed
-quantile of a scale-family distribution, its VaR) scales by `sqrt(t)`. This
-is an approximation, not an exact result, for two reasons: real returns
-exhibit volatility clustering (autocorrelated squared returns), which
-breaks the i.i.d. assumption, and it only equals the *true* t-day quantile
-exactly under a distributional assumption where scaling a 1-day quantile
-by `sqrt(t)` and *re-deriving* the t-day quantile directly agree
-(automatic for Parametric VaR's normal case, not generally true of
-Historical VaR's empirical quantile, since resampling t-day-aggregated
-historical returns does not equal scaling the 1-day empirical quantile by
-`sqrt(t)`). No milestone in `docs/roadmap.md` currently owns closing this
-gap; it is open future work, not scheduled scope creep into M9's
-documentation-only mandate.
+```
+value_t = value_1 * sqrt(horizon_days)
+```
+
+This scales the already-computed **1-day loss magnitude** — it does not
+resample or re-derive anything from the input return series at a longer
+horizon. `horizon_days=1` is a no-op (`sqrt(1) == 1`), so it is
+byte-identical to the pre-scaling behavior; see
+`tests/unit/risk/test_horizon_scaling.py::test_horizon_days_default_matches_explicit_one`.
+
+### The i.i.d. assumption — read this before trusting a multi-day figure
+
+**√t scaling assumes daily returns are i.i.d. with zero autocorrelation.**
+Under that assumption, a t-day return's variance is exactly `t` times the
+1-day variance, so its standard deviation — and, for a fixed quantile of a
+scale-family distribution, its VaR — scales by `sqrt(t)`. This is a
+**known approximation, not an exact result**, for two separate reasons:
+
+1. **Real returns are not i.i.d.** They exhibit volatility clustering
+   (today's squared return is correlated with tomorrow's) — the single
+   most well-documented stylized fact about financial return series. √t
+   scaling silently assumes this away.
+2. **Even under i.i.d., √t is only exact for some methods.** It requires
+   that scaling the 1-day quantile by `sqrt(t)` agree with *re-deriving*
+   the true t-day quantile directly:
+   - **Parametric VaR/ES**: exact. A sum of `t` i.i.d. `N(mu, sigma^2)`
+     variables is itself normal with variance `t * sigma^2`, so scaling
+     the closed-form normal quantile by `sqrt(t)` and refitting a normal
+     to the (hypothetical) t-day return series agree by construction.
+   - **Historical / Monte Carlo VaR/ES**: approximate even under i.i.d.
+     Their quantiles are empirical order statistics (or, for Monte Carlo,
+     order statistics of a simulated normal sample) — scaling that
+     quantile by `sqrt(t)` does **not** equal the empirical quantile you
+     would get by actually resampling/aggregating returns into
+     `t`-day blocks, because empirical quantiles of a sum don't scale
+     linearly with the quantile of the summands in general.
+
+This project does not implement genuine t-day resampling in v1 — √t
+scaling is the only supported way to get a multi-day figure, and it should
+be read as a standard industry approximation (the same one used by, e.g.,
+Basel's 10-day VaR via √10), not as a mathematically exact answer,
+especially for the Historical and Monte Carlo methods.
+
+**Worked example**: same historical-VaR inputs as the earlier worked
+example (returns `[-0.08, -0.04, 0.01, 0.05]`, `alpha=0.75`,
+`position_value=1,000,000`) gave `VaR_1 = 50,000`. At `horizon_days=4`,
+`sqrt(4) = 2` exactly, so `VaR_4 = 100,000` — a hand-checkable figure, not
+just "approximately double." See
+`tests/unit/risk/test_horizon_scaling.py::test_known_answer_worked_example_from_math_reference`.
+
+### Validation
+
+`horizon_days` must be a positive integer (`>= 1`); `0`, negative, and
+non-integer values are all rejected by `scale_to_horizon` with a clear
+`InvalidParameterError` before any scaling is attempted.
 
 ## Backtesting
 

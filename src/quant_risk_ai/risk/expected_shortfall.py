@@ -20,6 +20,7 @@ from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from quant_risk_ai.risk.stats_utils import (
     DEFAULT_N_SIMULATIONS,
     sample_normal,
+    scale_to_horizon,
     signed_loss_magnitude,
     validate_alpha,
     validate_parametric_sample_size,
@@ -49,8 +50,14 @@ def historical_expected_shortfall(
     tail mean that comes out positive (no losses in that tail) must not
     produce a negative RiskResult.value.
 
+    `horizon_days` scales the 1-day result via the sqrt(t) approximation
+    (`stats_utils.scale_to_horizon`) — see the "Time horizon scaling"
+    section of docs/math_reference.md for the i.i.d. assumption this rests
+    on.
+
     Raises:
-        InvalidParameterError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1),
+            or horizon_days is not a positive integer.
         InsufficientSampleSizeError: fewer observations than
             stats_utils.min_required_observations(alpha) are available.
     """
@@ -61,7 +68,9 @@ def historical_expected_shortfall(
     cutoff = returns.quantile(1.0 - alpha)
     tail = returns[returns <= cutoff]
     tail_mean = tail.mean()
-    loss_magnitude = signed_loss_magnitude(tail_mean, position_value)
+    loss_magnitude = scale_to_horizon(
+        signed_loss_magnitude(tail_mean, position_value), horizon_days
+    )
 
     return RiskResult(
         method=RiskMethod.HISTORICAL,
@@ -96,8 +105,14 @@ def parametric_expected_shortfall(
     (1 - alpha) quantile — see docs/math_reference.md for the derivation
     and the ES >= VaR check against parametric_var at the same alpha.
 
+    `horizon_days` scales the 1-day result via the sqrt(t) approximation
+    (`stats_utils.scale_to_horizon`) — see the "Time horizon scaling"
+    section of docs/math_reference.md for the i.i.d. assumption this rests
+    on.
+
     Raises:
-        InvalidParameterError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1),
+            or horizon_days is not a positive integer.
         InsufficientDataError: fewer than 2 observations are available.
     """
     validate_alpha(alpha)
@@ -108,7 +123,9 @@ def parametric_expected_shortfall(
     sigma = returns.std(ddof=1)
     z = norm.ppf(1.0 - alpha)
     tail_mean = mu - sigma * norm.pdf(z) / (1.0 - alpha)
-    loss_magnitude = signed_loss_magnitude(tail_mean, position_value)
+    loss_magnitude = scale_to_horizon(
+        signed_loss_magnitude(tail_mean, position_value), horizon_days
+    )
 
     return RiskResult(
         method=RiskMethod.PARAMETRIC,
@@ -145,10 +162,18 @@ def monte_carlo_expected_shortfall(
     Calling this and `var_monte_carlo.monte_carlo_var` with the same
     `seed`, `n_simulations`, and input data draws the identical simulated
     array in both, so `ES >= VaR` holds by the same exact-tail-superset
-    argument as the historical method, not just approximately.
+    argument as the historical method, not just approximately. This holds
+    at any `horizon_days` too: both are scaled by the same
+    `scale_to_horizon` factor at the same alpha, which preserves ordering.
+
+    `horizon_days` scales the 1-day result via the sqrt(t) approximation
+    (`stats_utils.scale_to_horizon`) — see the "Time horizon scaling"
+    section of docs/math_reference.md for the i.i.d. assumption this rests
+    on.
 
     Raises:
-        InvalidParameterError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1),
+            or horizon_days is not a positive integer.
         InsufficientDataError: fewer than 2 real observations are available
             to fit mu/sigma.
         InsufficientSampleSizeError: n_simulations is too small to back the
@@ -165,7 +190,9 @@ def monte_carlo_expected_shortfall(
     cutoff = np.quantile(simulated_returns, 1.0 - alpha)
     tail = simulated_returns[simulated_returns <= cutoff]
     tail_mean = tail.mean()
-    loss_magnitude = signed_loss_magnitude(tail_mean, position_value)
+    loss_magnitude = scale_to_horizon(
+        signed_loss_magnitude(tail_mean, position_value), horizon_days
+    )
 
     return RiskResult(
         method=RiskMethod.MONTE_CARLO,

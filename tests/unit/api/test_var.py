@@ -154,3 +154,59 @@ def test_empty_series_rejected_by_request_validation(client):
     )
 
     assert response.status_code == 422
+
+
+def test_horizon_days_has_effect_end_to_end(client):
+    """`horizon_days` was, before the sqrt(t)-scaling fix, accepted by
+    VaRRequest and echoed back on the response but had no effect on
+    `value` (see docs/math_reference.md's "Time horizon scaling" section).
+    This closes the loop end-to-end through the actual HTTP request/
+    response cycle, not just the risk-engine function directly: a request
+    with horizon_days=4 must return exactly 2x (sqrt(4)) the value of the
+    same request with horizon_days=1, and the response must echo
+    horizon_days=4 back.
+    """
+    values = [0.01, -0.08, 0.05, -0.04]
+    series = make_series_payload(values)
+
+    one_day = client.post(
+        "/var/historical",
+        json={
+            "series": series,
+            "alpha": 0.75,
+            "position_value": 10_000.0,
+            "horizon_days": 1,
+        },
+    )
+    four_day = client.post(
+        "/var/historical",
+        json={
+            "series": series,
+            "alpha": 0.75,
+            "position_value": 10_000.0,
+            "horizon_days": 4,
+        },
+    )
+
+    assert one_day.status_code == 200
+    assert four_day.status_code == 200
+    assert four_day.json()["value"] == pytest.approx(one_day.json()["value"] * 2.0)
+    assert four_day.json()["horizon_days"] == 4
+
+
+@pytest.mark.parametrize("bad_horizon", [0, -1])
+def test_invalid_horizon_days_returns_422(client, bad_horizon):
+    values = [0.01, -0.08, 0.05, -0.04]
+
+    response = client.post(
+        "/var/historical",
+        json={
+            "series": make_series_payload(values),
+            "alpha": 0.75,
+            "position_value": 10_000.0,
+            "horizon_days": bad_horizon,
+        },
+    )
+
+    assert response.status_code == 422
+    assert "horizon_days" in response.json()["detail"]

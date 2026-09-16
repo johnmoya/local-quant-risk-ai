@@ -13,44 +13,23 @@ identical array regardless of alpha, so the VaR and ES calls at a given
 alpha see the same simulated sample (making `ES >= VaR` exact, not just
 statistically likely) and the per-alpha quantiles are genuine order
 statistics of one fixed array (making monotonicity exact too).
-"""
 
-from collections.abc import Callable
-from functools import partial
+Both invariants are also checked at horizon_days > 1 (see HORIZONS):
+`scale_to_horizon` multiplies both the VaR and ES figures at a given alpha
+by the same positive factor, and multiplies every alpha's VaR by that same
+factor, so both invariants must survive the scaling unchanged — this is
+what pins that down, rather than assuming it.
+"""
 
 import numpy as np
 import pytest
 
-from quant_risk_ai.risk.expected_shortfall import (
-    historical_expected_shortfall,
-    monte_carlo_expected_shortfall,
-    parametric_expected_shortfall,
-)
-from quant_risk_ai.risk.results import RiskResult
-from quant_risk_ai.risk.var_historical import historical_var
-from quant_risk_ai.risk.var_monte_carlo import monte_carlo_var
-from quant_risk_ai.risk.var_parametric import parametric_var
 from tests.unit.risk._helpers import make_asset_returns
 from tests.unit.risk._invariants import assert_es_at_least_var, assert_var_monotonic_in_alpha
+from tests.unit.risk._methods import METHODS
 
 ALPHAS = [0.90, 0.95, 0.99]
-
-_MONTE_CARLO_SEED = 42
-
-# Explicitly annotated because the three methods' compute functions don't
-# share an exact signature (Monte Carlo's take a required `seed`, bound
-# here via partial) — without this, mypy infers the dict's value type as
-# the join of three unrelated callables (effectively `object`), rather
-# than checking each against the common shape they're actually called
-# with here.
-METHODS: dict[str, tuple[Callable[..., RiskResult], Callable[..., RiskResult]]] = {
-    "historical": (historical_var, historical_expected_shortfall),
-    "parametric": (parametric_var, parametric_expected_shortfall),
-    "monte_carlo": (
-        partial(monte_carlo_var, seed=_MONTE_CARLO_SEED),
-        partial(monte_carlo_expected_shortfall, seed=_MONTE_CARLO_SEED),
-    ),
-}
+HORIZONS = [1, 4, 10]
 
 _N = 300
 _normal_rng = np.random.default_rng(42)
@@ -69,24 +48,29 @@ SYNTHETIC_DATASETS: dict[str, list[float]] = {
 @pytest.mark.parametrize("method_name", sorted(METHODS))
 @pytest.mark.parametrize("dataset_name", sorted(SYNTHETIC_DATASETS))
 @pytest.mark.parametrize("alpha", ALPHAS)
-def test_es_at_least_var(alpha, dataset_name, method_name):
+@pytest.mark.parametrize("horizon_days", HORIZONS)
+def test_es_at_least_var(alpha, dataset_name, method_name, horizon_days):
     var_func, es_func = METHODS[method_name]
     asset_returns = make_asset_returns(SYNTHETIC_DATASETS[dataset_name])
 
-    var_result = var_func(asset_returns, alpha=alpha, position_value=1.0)
-    es_result = es_func(asset_returns, alpha=alpha, position_value=1.0)
+    var_result = var_func(asset_returns, alpha=alpha, position_value=1.0, horizon_days=horizon_days)
+    es_result = es_func(asset_returns, alpha=alpha, position_value=1.0, horizon_days=horizon_days)
 
     assert_es_at_least_var(var_result, es_result)
 
 
 @pytest.mark.parametrize("method_name", sorted(METHODS))
 @pytest.mark.parametrize("dataset_name", sorted(SYNTHETIC_DATASETS))
-def test_var_monotonic_in_alpha(dataset_name, method_name):
+@pytest.mark.parametrize("horizon_days", HORIZONS)
+def test_var_monotonic_in_alpha(dataset_name, method_name, horizon_days):
     var_func, _ = METHODS[method_name]
     asset_returns = make_asset_returns(SYNTHETIC_DATASETS[dataset_name])
 
     var_by_alpha = {
-        alpha: var_func(asset_returns, alpha=alpha, position_value=1.0).value for alpha in ALPHAS
+        alpha: var_func(
+            asset_returns, alpha=alpha, position_value=1.0, horizon_days=horizon_days
+        ).value
+        for alpha in ALPHAS
     }
 
     assert_var_monotonic_in_alpha(var_by_alpha)
