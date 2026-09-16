@@ -18,6 +18,7 @@ from datetime import date as date_type
 from quant_risk_ai.data.schemas import AssetReturnSeries
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from quant_risk_ai.risk.stats_utils import (
+    scale_to_horizon,
     signed_loss_magnitude,
     validate_alpha,
     validate_sample_size,
@@ -34,12 +35,14 @@ def historical_var(
 ) -> RiskResult:
     """Compute Historical VaR for a single asset's return series.
 
-    `horizon_days` is recorded on the result but does not (yet) trigger any
-    time-horizon scaling of the underlying 1-period return distribution —
-    see the "Time horizon scaling" TODO in docs/math_reference.md.
+    `horizon_days` scales the 1-day result via the sqrt(t) approximation
+    (`stats_utils.scale_to_horizon`) — see the "Time horizon scaling"
+    section of docs/math_reference.md for the i.i.d. assumption this rests
+    on.
 
     Raises:
-        InvalidParameterError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1),
+            or horizon_days is not a positive integer.
         InsufficientSampleSizeError: fewer observations than
             stats_utils.min_required_observations(alpha) are available.
     """
@@ -48,7 +51,7 @@ def historical_var(
     validate_sample_size(len(returns), alpha)
 
     quantile = returns.quantile(1.0 - alpha)
-    loss_magnitude = signed_loss_magnitude(quantile, position_value)
+    loss_magnitude = scale_to_horizon(signed_loss_magnitude(quantile, position_value), horizon_days)
 
     return RiskResult(
         method=RiskMethod.HISTORICAL,

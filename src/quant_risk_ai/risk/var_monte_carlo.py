@@ -35,6 +35,7 @@ from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from quant_risk_ai.risk.stats_utils import (
     DEFAULT_N_SIMULATIONS,
     sample_normal,
+    scale_to_horizon,
     signed_loss_magnitude,
     validate_alpha,
     validate_parametric_sample_size,
@@ -54,12 +55,14 @@ def monte_carlo_var(
 ) -> RiskResult:
     """Compute Monte Carlo VaR for a single asset's return series.
 
-    `horizon_days` is recorded on the result but does not (yet) trigger any
-    time-horizon scaling — see the "Time horizon scaling" TODO in
-    docs/math_reference.md.
+    `horizon_days` scales the 1-day result via the sqrt(t) approximation
+    (`stats_utils.scale_to_horizon`) — see the "Time horizon scaling"
+    section of docs/math_reference.md for the i.i.d. assumption this rests
+    on.
 
     Raises:
-        InvalidParameterError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1),
+            or horizon_days is not a positive integer.
         InsufficientDataError: fewer than 2 real observations are available
             to fit mu/sigma.
         InsufficientSampleSizeError: n_simulations is too small to back the
@@ -74,7 +77,7 @@ def monte_carlo_var(
     sigma = returns.std(ddof=1)
     simulated_returns = sample_normal(mu, sigma, n_simulations, seed)
     quantile = np.quantile(simulated_returns, 1.0 - alpha)
-    loss_magnitude = signed_loss_magnitude(quantile, position_value)
+    loss_magnitude = scale_to_horizon(signed_loss_magnitude(quantile, position_value), horizon_days)
 
     return RiskResult(
         method=RiskMethod.MONTE_CARLO,

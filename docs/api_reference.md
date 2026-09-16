@@ -48,7 +48,10 @@ Three endpoints, one per VaR method, all returning `RiskResultResponse`
 
 Shared request fields (`VaRRequest`): `series`, `alpha` (default
 `0.99`), `position_value`, `horizon_days` (default `1`), `as_of`
-(optional — defaults to the series' last date).
+(optional — defaults to the series' last date). `horizon_days` applies the
+sqrt(t) scaling described in `docs/math_reference.md`'s "Time horizon
+scaling" section to the returned `value` — it is a real, functional
+parameter, not just an echoed label.
 
 The example below reuses `docs/math_reference.md`'s historical-VaR worked
 example (returns `[-0.08, -0.04, 0.01, 0.05]`, `alpha=0.75`) so the numbers
@@ -89,6 +92,11 @@ illustrative:
   "metadata": {"return_method": "log"}
 }
 ```
+
+The same request with `"horizon_days": 4` returns `"value": 100000.0`
+(`sqrt(4) = 2`, exactly double the 1-day figure) and echoes
+`"horizon_days": 4` — see
+`tests/unit/api/test_var.py::test_horizon_days_has_effect_end_to_end`.
 
 `/var/montecarlo` additionally requires `seed` (int) for reproducibility
 and accepts `n_simulations` (default from

@@ -119,6 +119,39 @@ def validate_simulation_count(n_simulations: int, alpha: float) -> None:
         )
 
 
+def scale_to_horizon(loss_magnitude: float, horizon_days: int) -> float:
+    """Scale an already-computed 1-day VaR/ES loss magnitude to a
+    `horizon_days`-day horizon via the standard sqrt(t) approximation:
+
+        value_t = value_1 * sqrt(horizon_days)
+
+    This is a post-hoc scaling of the *final* currency loss figure, not a
+    resampling of the input return series to a longer horizon — every
+    var_*.py / expected_shortfall.py function calls this exactly once, on
+    the output of `signed_loss_magnitude`, so the sqrt(t) formula and its
+    validation live in one place instead of six.
+
+    sqrt(t) rests on an i.i.d., zero-autocorrelation assumption about daily
+    returns and is a known approximation, not an exact result for every
+    method (exact for Parametric's normal closed form, approximate for
+    Historical/Monte Carlo's empirical quantiles) — see the "Time horizon
+    scaling" section of docs/math_reference.md for why.
+
+    `horizon_days=1` is a no-op (`sqrt(1) == 1`), so every existing 1-day
+    call site is unaffected by construction, not just by convention.
+
+    Raises:
+        InvalidParameterError: horizon_days is not a positive integer.
+    """
+    if not isinstance(horizon_days, int):
+        raise InvalidParameterError(f"horizon_days must be an integer, got {horizon_days!r}")
+    if horizon_days < 1:
+        raise InvalidParameterError(
+            f"horizon_days must be a positive integer (>=1), got {horizon_days}"
+        )
+    return loss_magnitude * math.sqrt(horizon_days)
+
+
 def sample_normal(mu: float, sigma: float, n_simulations: int, seed: int) -> np.ndarray:
     """Draw `n_simulations` samples from Normal(mu, sigma^2) via a seeded
     RNG — deterministic for a given seed, so two calls with the same

@@ -24,6 +24,7 @@ from scipy.stats import norm
 from quant_risk_ai.data.schemas import AssetReturnSeries
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from quant_risk_ai.risk.stats_utils import (
+    scale_to_horizon,
     signed_loss_magnitude,
     validate_alpha,
     validate_parametric_sample_size,
@@ -40,12 +41,14 @@ def parametric_var(
 ) -> RiskResult:
     """Compute Parametric (normal) VaR for a single asset's return series.
 
-    `horizon_days` is recorded on the result but does not (yet) trigger any
-    time-horizon scaling — see the "Time horizon scaling" TODO in
-    docs/math_reference.md.
+    `horizon_days` scales the 1-day result via the sqrt(t) approximation
+    (`stats_utils.scale_to_horizon`) — see the "Time horizon scaling"
+    section of docs/math_reference.md for the i.i.d. assumption this rests
+    on.
 
     Raises:
-        InvalidParameterError: alpha is not in the open interval (0, 1).
+        InvalidParameterError: alpha is not in the open interval (0, 1),
+            or horizon_days is not a positive integer.
         InsufficientDataError: fewer than 2 observations are available.
     """
     validate_alpha(alpha)
@@ -55,7 +58,7 @@ def parametric_var(
     mu = returns.mean()
     sigma = returns.std(ddof=1)
     quantile = mu + sigma * norm.ppf(1.0 - alpha)
-    loss_magnitude = signed_loss_magnitude(quantile, position_value)
+    loss_magnitude = scale_to_horizon(signed_loss_magnitude(quantile, position_value), horizon_days)
 
     return RiskResult(
         method=RiskMethod.PARAMETRIC,
