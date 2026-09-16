@@ -277,8 +277,32 @@ holding in expectation across independent simulation runs.
 
 ## Time horizon scaling
 
-TODO: the √t scaling assumption from 1-day to t-day VaR, and why it's an
-approximation (i.i.d., no autocorrelation) rather than exact.
+**Not implemented in v1.** Every `risk/var_*.py` and
+`risk/expected_shortfall.py` function accepts `horizon_days` and records
+it on the resulting `RiskResult` (so callers and the API schema always
+carry it), but none of them currently scale the underlying return
+distribution by it — see the "`horizon_days` is recorded on the result
+but does not (yet) trigger any time-horizon scaling" note repeated in
+each function's docstring. A request with `horizon_days=10` today gets
+the *same* VaR/ES figure as `horizon_days=1` over the same input series;
+`horizon_days` is not yet a functional parameter, only a labeled one.
+
+The standard approach, when this is implemented, is **√t scaling**:
+`VaR_t = VaR_1 * sqrt(t)`, derived from assuming i.i.d., zero-autocorrelation
+daily returns — under that assumption a t-day return's variance is exactly
+`t` times the 1-day variance, so its standard deviation (and, for a fixed
+quantile of a scale-family distribution, its VaR) scales by `sqrt(t)`. This
+is an approximation, not an exact result, for two reasons: real returns
+exhibit volatility clustering (autocorrelated squared returns), which
+breaks the i.i.d. assumption, and it only equals the *true* t-day quantile
+exactly under a distributional assumption where scaling a 1-day quantile
+by `sqrt(t)` and *re-deriving* the t-day quantile directly agree
+(automatic for Parametric VaR's normal case, not generally true of
+Historical VaR's empirical quantile, since resampling t-day-aggregated
+historical returns does not equal scaling the 1-day empirical quantile by
+`sqrt(t)`). No milestone in `docs/roadmap.md` currently owns closing this
+gap; it is open future work, not scheduled scope creep into M9's
+documentation-only mandate.
 
 ## Backtesting
 
