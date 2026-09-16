@@ -1,0 +1,58 @@
+services:
+  ollama:
+    image: ollama/ollama:latest
+    volumes:
+      # Bind mount (not a named volume) so the pulled model survives
+      # `docker compose down` / rebuilds without living inside Docker's
+      # opaque volume storage. Host-side, so it's gitignored (docker/volumes/).
+      - ./docker/volumes/ollama:/root/.ollama
+    healthcheck:
+      # `ollama list` only succeeds once the local server is actually
+      # answering requests, unlike a bare "container is running" check —
+      # exactly what api's `depends_on: condition: service_healthy` needs.
+      test: ["CMD", "ollama", "list"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - quant-risk-ai
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      # Fixed to the Compose service's DNS name, not localhost — the two
+      # containers only see each other through the `quant-risk-ai` network.
+      # This is set here (orchestration config), never in application code,
+      # which only ever reads QUANT_RISK_AI_OLLAMA_BASE_URL from the
+      # environment (see src/quant_risk_ai/config.py).
+      QUANT_RISK_AI_OLLAMA_BASE_URL: http://ollama:11434
+      QUANT_RISK_AI_OLLAMA_MODEL: ${QUANT_RISK_AI_OLLAMA_MODEL:-qwen3:8b}
+      QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS: ${QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS:-60}
+      QUANT_RISK_AI_DEFAULT_ALPHA: ${QUANT_RISK_AI_DEFAULT_ALPHA:-0.99}
+      QUANT_RISK_AI_DEFAULT_HORIZON_DAYS: ${QUANT_RISK_AI_DEFAULT_HORIZON_DAYS:-1}
+      QUANT_RISK_AI_DEFAULT_N_SIMULATIONS: ${QUANT_RISK_AI_DEFAULT_N_SIMULATIONS:-100000}
+      QUANT_RISK_AI_DEFAULT_TEST_CONFIDENCE: ${QUANT_RISK_AI_DEFAULT_TEST_CONFIDENCE:-0.95}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - "CMD"
+        - "python"
+        - "-c"
+        - "import urllib.request as u; u.urlopen('http://localhost:8000/openapi.json')"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    networks:
+      - quant-risk-ai
+
+networks:
+  quant-risk-ai:
+    driver: bridge

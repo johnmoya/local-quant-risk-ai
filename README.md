@@ -17,10 +17,11 @@ scope decisions and milestones.
 
 ## Status
 
-Currently at **M4** (Monte Carlo VaR + Expected Shortfall). The data layer
-(M1) and all three risk methods — Historical, Parametric, and Monte
-Carlo — are implemented and tested; no API or LLM integration yet — see
-`docs/roadmap.md` for what's next (M5: backtesting suite).
+Through **M8** (Dockerization): the data layer, all three VaR/ES methods,
+the backtesting suite, the FastAPI service (`/var`, `/expected-shortfall`,
+`/backtest`), and the Ollama-backed `/explain` endpoint are implemented and
+tested, and the whole stack runs under `docker compose`. See
+`docs/roadmap.md` for what's next (M9: documentation).
 
 ## Project layout
 
@@ -31,19 +32,23 @@ src/quant_risk_ai/
 ├── llm/     # Ollama client + prompt templates; consumes RiskResult only
 ├── api/     # FastAPI routers over risk/ and llm/
 └── core/    # shared logging and exceptions
+docker/
+├── Dockerfile        # multi-stage build for the api image (see below)
+└── volumes/ollama/   # bind-mounted Ollama model storage (gitignored)
+docker-compose.yml    # api + ollama services
 ```
 
 ## Development setup
 
-Dependencies are managed with [`uv`](https://docs.astral.sh/uv/).
+Dependencies are managed with [`uv`](https://docs.astral.sh/uv/), pinned via
+`uv.lock`.
 
 ```bash
-uv venv --python 3.11
+uv sync --extra dev
 source .venv/bin/activate
-uv pip install -e ".[dev]"
 pytest
 ruff check .
-mypy src
+mypy src tests
 ```
 
 > **Note for WSL setups**: if this repo lives inside a WSL distro's native
@@ -54,9 +59,52 @@ mypy src
 > dramatically slower than running natively, and a Windows-launched venv
 > won't share structure with a Linux one (`Scripts/` vs `bin/`).
 
+## Running with Docker
+
+This brings up two containers on an internal network — `api` (the FastAPI
+service) and `ollama` (the LLM backend) — with `api` configured to reach
+Ollama at `http://ollama:11434` (the compose service's DNS name, set as an
+environment variable in `docker-compose.yml` — never hardcoded in the
+application, which only ever reads `QUANT_RISK_AI_OLLAMA_BASE_URL`; see
+`src/quant_risk_ai/config.py`).
+
+```bash
+# 1. Build and start both services. `api` waits for `ollama`'s healthcheck
+#    (`ollama list` succeeding, not just "container is running") before it
+#    starts, via `depends_on: condition: service_healthy`.
+docker compose up -d --build
+
+# 2. First run only: pull the model into the ollama container. It's stored
+#    under the bind-mounted ./docker/volumes/ollama, so this survives
+#    `docker compose down` / rebuilds and never needs to be repeated.
+docker compose exec ollama ollama pull qwen3:8b
+
+# 3. Check both containers report healthy.
+docker compose ps
+
+# 4. The API is now on the host at localhost:8000 - interactive docs at
+#    http://localhost:8000/docs. /explain will 503 until step 2 has
+#    finished pulling the model.
+curl -X POST http://localhost:8000/var/historical -H 'Content-Type: application/json' -d '...'
+
+# Stop the stack (add -v to also drop the network; the model survives
+# either way, since it lives in the bind mount, not a container volume).
+docker compose down
+```
+
+Optional: copy `.env.example` to `.env` at the repo root to override the
+Ollama model/timeout or the risk-endpoint defaults for the stack (Compose
+loads a root `.env` automatically for `${...}` substitution in
+`docker-compose.yml`) — `QUANT_RISK_AI_OLLAMA_BASE_URL` is the one exception,
+fixed to the `ollama` service name in `docker-compose.yml` regardless of
+what's in `.env`, since `localhost` has no meaning inside the `api`
+container.
+
 ## Requirements
 
 - Python 3.11+
-- Docker (for the full stack, from M8 onward)
-- Ollama with the `qwen3:8b` model pulled (for the `/explain` endpoint, from
-  M7 onward)
+- Docker + Docker Compose v2 (`docker compose`, not the standalone
+  `docker-compose`) for the full stack
+- Ollama with the `qwen3:8b` model pulled — either natively for local dev,
+  or inside the `ollama` container per "Running with Docker" above — for
+  the `/explain` endpoint
