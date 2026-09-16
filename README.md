@@ -17,11 +17,12 @@ scope decisions and milestones.
 
 ## Status
 
-Through **M8** (Dockerization): the data layer, all three VaR/ES methods,
+Through **M9** (documentation): the data layer, all three VaR/ES methods,
 the backtesting suite, the FastAPI service (`/var`, `/expected-shortfall`,
 `/backtest`), and the Ollama-backed `/explain` endpoint are implemented and
-tested, and the whole stack runs under `docker compose`. See
-`docs/roadmap.md` for what's next (M9: documentation).
+tested, the whole stack runs under `docker compose`, and
+`docs/architecture.md`, `docs/math_reference.md`, and `docs/api_reference.md`
+are complete. See `docs/roadmap.md` for what's next (M10: hardening pass).
 
 ## Project layout
 
