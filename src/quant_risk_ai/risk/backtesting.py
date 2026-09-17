@@ -39,7 +39,7 @@ from scipy.special import xlogy
 from scipy.stats import binom, chi2
 
 from quant_risk_ai.core.exceptions import DataValidationError, InsufficientDataError
-from quant_risk_ai.risk.stats_utils import validate_alpha
+from quant_risk_ai.risk.stats_utils import validate_alpha, validate_position_value
 
 
 def compute_violations(
@@ -59,7 +59,12 @@ def compute_violations(
     single-asset, no rebalancing — consistent with the rest of the risk
     engine); realized loss on day t is `-realized_returns[t] *
     position_value`, compared against `var_estimates[t]`.
+
+    Raises:
+        InvalidParameterError: position_value is negative or non-finite.
+        DataValidationError: the two series' indices don't match.
     """
+    validate_position_value(position_value)
     if not var_estimates.index.equals(realized_returns.index):
         raise DataValidationError(
             "var_estimates and realized_returns must share the same index "

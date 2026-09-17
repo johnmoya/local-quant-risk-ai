@@ -210,3 +210,30 @@ def test_invalid_horizon_days_returns_422(client, bad_horizon):
 
     assert response.status_code == 422
     assert "horizon_days" in response.json()["detail"]
+
+
+def test_infinite_position_value_returns_422_not_a_broken_200(client):
+    """`position_value: 1e400` is syntactically valid JSON (an ordinary
+    numeric literal) that overflows float parsing to `inf`. Before M10's
+    hardening pass, this silently produced a 200 response with
+    `"value": null` (Python's json encoder maps a non-finite float to
+    `null`) — a broken-looking success, not a clear error. httpx's own
+    Python-side JSON encoder refuses to serialize `float('inf')` at all
+    (`allow_nan=False`), so this sends a raw request body to exercise the
+    server's own JSON parsing, the way a non-Python client actually would.
+    """
+    body = (
+        b'{"series": {"asset_id": "AAPL", "observations": ['
+        b'{"date": "2024-01-02", "value": -0.08},'
+        b'{"date": "2024-01-03", "value": -0.04},'
+        b'{"date": "2024-01-04", "value": 0.01},'
+        b'{"date": "2024-01-05", "value": 0.05}'
+        b']}, "alpha": 0.75, "position_value": 1e400}'
+    )
+
+    response = client.post(
+        "/var/historical", content=body, headers={"content-type": "application/json"}
+    )
+
+    assert response.status_code == 422
+    assert "position_value" in response.json()["detail"]

@@ -19,6 +19,7 @@ docs/roadmap.md for multi-asset portfolios):
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
 from datetime import date
 from enum import StrEnum
@@ -60,10 +61,24 @@ class RiskResult:
     metadata: dict = field(default_factory=dict)
 
     def __post_init__(self) -> None:
+        # NaN and +/-inf both fail `< 0`, so the sign check below would
+        # silently let either one through as a "non-negative" value — this
+        # is the one dataclass every layer boundary crosses (see
+        # docs/architecture.md), including a client-resubmitted RiskResult
+        # on POST /explain that never passed through the risk engine's own
+        # input validation, so it's checked explicitly rather than assumed.
+        if not math.isfinite(self.value):
+            raise InvalidParameterError(
+                f"{self.metric.value} must be a finite number, got {self.value}"
+            )
         if self.value < 0:
             raise InvalidParameterError(
                 f"{self.metric.value} must be reported as a non-negative loss "
                 f"magnitude, got {self.value}"
+            )
+        if not math.isfinite(self.portfolio_value):
+            raise InvalidParameterError(
+                f"portfolio_value must be a finite number, got {self.portfolio_value}"
             )
         if not (0.0 < self.confidence_level < 1.0):
             raise InvalidParameterError(

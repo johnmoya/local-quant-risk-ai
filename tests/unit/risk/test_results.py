@@ -48,6 +48,23 @@ def test_negative_value_is_rejected(bad_value):
         _make_result(value=bad_value)
 
 
+@pytest.mark.parametrize("bad_value", [float("inf"), float("-inf"), float("nan")])
+def test_non_finite_value_is_rejected(bad_value):
+    # `nan < 0` and `inf < 0` are both False, so test_negative_value_is_
+    # rejected's check alone would silently let either through — this
+    # pins down the separate, explicit finiteness check that catches them
+    # (see __post_init__'s comment for why this matters most for a
+    # client-resubmitted RiskResult on POST /explain).
+    with pytest.raises(InvalidParameterError, match="finite"):
+        _make_result(value=bad_value)
+
+
+@pytest.mark.parametrize("bad_value", [float("inf"), float("-inf"), float("nan")])
+def test_non_finite_portfolio_value_is_rejected(bad_value):
+    with pytest.raises(InvalidParameterError, match="portfolio_value must be a finite"):
+        _make_result(portfolio_value=bad_value)
+
+
 def test_zero_value_is_allowed():
     # A flat / zero-volatility series is a valid, if degenerate, edge case.
     result = _make_result(value=0.0)

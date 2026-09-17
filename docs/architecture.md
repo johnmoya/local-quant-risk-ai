@@ -40,6 +40,19 @@ post-hoc numeric-consistency check (`quant_risk_ai.llm.numeric_check`) before
 it can be returned — this is the concrete, tested safeguard for the
 principle, not a best-effort convention.
 
+**The risk engine also has zero *logging* calls, for the same "no I/O"
+reason it has zero LLM calls: `risk/*` is meant to stay pure-function
+computation, callable from a script, a notebook, or a test without a
+logging config in place, and fully deterministic given its inputs — a
+log write is a side effect that doesn't fit that contract.** M10's
+structured logging (`core/logging.py`) is therefore wired into the API
+layer (one line per request, plus a traceback for any unhandled
+exception — see `docs/api_reference.md`'s "Logging" section) and the LLM
+layer (Ollama call timing/failures), never into `risk/*`. Validation
+errors from the risk engine (`InvalidParameterError`,
+`DataValidationError`, etc.) still end up logged — but at the API
+boundary that catches and maps them, not at the point they're raised.
+
 ## The `RiskResult` contract
 
 `RiskResult` (`src/quant_risk_ai/risk/results.py`) is the one object that
@@ -52,8 +65,13 @@ change:
   one identifier. M11 (multi-asset portfolios) populates it with more than
   one identifier and adds a covariance-aware computation path underneath,
   without changing this schema.
-- `value` is enforced non-negative at construction time (see
-  `docs/math_reference.md` for the sign convention this encodes).
+- `value` is enforced non-negative *and finite* at construction time (see
+  `docs/math_reference.md` for the sign convention this encodes; the
+  finiteness check is M10 — `nan < 0` and `inf < 0` are both `False` in
+  Python, so the sign check alone would silently admit either). This
+  matters most for `POST /explain`'s resubmitted `RiskResult`, the one
+  path that never passed through the risk engine's own input validation
+  at all.
 - `metadata: dict` is an open extension point for method-specific detail
   (e.g. Monte Carlo simulation count and RNG seed) so new methods don't need
   new top-level fields.

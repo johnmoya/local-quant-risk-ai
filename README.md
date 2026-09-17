@@ -17,12 +17,20 @@ scope decisions and milestones.
 
 ## Status
 
-Through **M9** (documentation): the data layer, all three VaR/ES methods,
-the backtesting suite, the FastAPI service (`/var`, `/expected-shortfall`,
-`/backtest`), and the Ollama-backed `/explain` endpoint are implemented and
-tested, the whole stack runs under `docker compose`, and
-`docs/architecture.md`, `docs/math_reference.md`, and `docs/api_reference.md`
-are complete. See `docs/roadmap.md` for what's next (M10: hardening pass).
+Through **M10** (hardening pass): the data layer, all three VaR/ES
+methods, the backtesting suite, the FastAPI service (`/var`,
+`/expected-shortfall`, `/backtest`), and the Ollama-backed `/explain`
+endpoint are implemented and tested, the whole stack runs under
+`docker compose`, `docs/architecture.md`, `docs/math_reference.md`, and
+`docs/api_reference.md` are complete, and the service has structured
+JSON logging, a numeric-edge-case audit (non-finite/negative
+`position_value`, infinite prices, non-finite `RiskResult` fields — all
+now rejected with a clear error instead of silently propagating), and a
+catch-all handler ensuring an unhandled exception always returns a clean
+500 rather than leaking framework-specific output. M10's CI-pipeline item
+is deferred: this repo has no configured git remote yet, so there's
+nowhere for one to run. See `docs/roadmap.md` for what's next (M11:
+multi-asset portfolios).
 
 ## Project layout
 
@@ -94,12 +102,22 @@ docker compose down
 ```
 
 Optional: copy `.env.example` to `.env` at the repo root to override the
-Ollama model/timeout or the risk-endpoint defaults for the stack (Compose
-loads a root `.env` automatically for `${...}` substitution in
-`docker-compose.yml`) — `QUANT_RISK_AI_OLLAMA_BASE_URL` is the one exception,
-fixed to the `ollama` service name in `docker-compose.yml` regardless of
-what's in `.env`, since `localhost` has no meaning inside the `api`
-container.
+Ollama model/timeout, the risk-endpoint defaults, or the log level (see
+"Logging" below) for the stack (Compose loads a root `.env` automatically
+for `${...}` substitution in `docker-compose.yml`) — `QUANT_RISK_AI_OLLAMA_BASE_URL`
+is the one exception, fixed to the `ollama` service name in
+`docker-compose.yml` regardless of what's in `.env`, since `localhost` has
+no meaning inside the `api` container.
+
+## Logging
+
+The API logs one structured JSON line per request to stdout (`method`,
+`path`, `status_code`, `duration_ms`) plus an ERROR-level line with a full
+traceback for any unhandled exception — `docker compose logs api` is the
+primary place to look. Set `QUANT_RISK_AI_LOG_LEVEL` (default `INFO`) to
+`DEBUG`/`WARNING`/`ERROR` to change verbosity. See
+`docs/api_reference.md`'s "Logging" section for the full field list and
+which log level each failure mode uses.
 
 ## Requirements
 
