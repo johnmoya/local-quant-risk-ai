@@ -32,7 +32,8 @@ catch-all handler ensuring an unhandled exception always returns a clean
 (`.github/workflows/ci.yml`) runs pytest, ruff check, ruff format --check
 and mypy on every push and pull request, installing strictly from
 `uv.lock`; it needs neither Ollama nor Docker. See `docs/roadmap.md` for
-what's next (M11: multi-asset portfolios).
+the planned v2 direction (M11–M18: from multi-asset portfolios toward a
+Quant Risk + ML Engineering platform).
 
 ## Project layout
 
