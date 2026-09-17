@@ -31,7 +31,13 @@ package (`quant_risk_ai.llm`) or the API package (`quant_risk_ai.api`).** This
 is not just documented — it's enforced by
 `tests/unit/risk/test_no_llm_dependency.py`, which statically inspects every
 module under `risk/` for an import of either package and fails the build if
-one appears.
+one appears. Since v1.0.1 the same test also forbids `logging`, `httpx`,
+`quant_risk_ai.core.logging` and `quant_risk_ai.config` inside `risk/`, and
+its import scanner catches every import form (`import x`, `from x import y`,
+`from pkg import submodule`, and relative imports), with its own tests
+proving each one is detected. All three `risk/` invariants — no LLM/API
+dependency, no I/O or logging, no environment-driven configuration — are
+therefore checked automatically rather than by convention.
 
 ### The principle, stated precisely
 
@@ -52,7 +58,7 @@ an LLM's generated text is not, so it may only narrate an already-computed
 `RiskResult`.
 
 Under this formulation the boundary test above remains valid and
-necessary, unchanged: learned models live *inside* `risk/`, the LLM stays
+necessary: learned models live *inside* `risk/`, the LLM stays
 *outside* it, and the import boundary is what guarantees a risk figure can
 never come from the LLM layer. The other `risk/` invariants also carry
 over — no I/O and no logging (a model artifact is loaded at the boundary
@@ -79,6 +85,8 @@ layer (Ollama call timing/failures), never into `risk/*`. Validation
 errors from the risk engine (`InvalidParameterError`,
 `DataValidationError`, etc.) still end up logged — but at the API
 boundary that catches and maps them, not at the point they're raised.
+Enforced by `test_risk_package_does_no_io_logging_or_env_config` in
+`tests/unit/risk/test_no_llm_dependency.py`.
 
 ## The `RiskResult` contract
 
