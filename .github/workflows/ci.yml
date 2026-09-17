@@ -25,11 +25,12 @@ jobs:
           version: "0.12.5"
           python-version: "3.11"
 
-      # --frozen installs exactly what uv.lock pins, with no re-resolution:
-      # unpinned tool versions already caused drift twice (mypy in M5,
-      # ruff format in M9).
+      # --locked installs exactly what uv.lock pins and fails if uv.lock is
+      # out of date with pyproject.toml (--frozen would silently use the
+      # stale lock). Unpinned tool versions already caused drift twice
+      # (mypy in M5, ruff format in M9).
       - name: Install dependencies from uv.lock
-        run: uv sync --frozen --extra dev
+        run: uv sync --locked --extra dev
 
       - name: Tool versions
         run: |

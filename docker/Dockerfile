@@ -5,7 +5,12 @@
 # no tests/, no .venv from the host. Build context is the repo root (see
 # docker-compose.yml's `build.context: .`), so paths below are repo-relative.
 
-FROM python:3.11-slim AS builder
+# Pinned by digest: a tag like 3.11-slim is re-pointed on every upstream
+# rebuild, so the same Dockerfile would otherwise build a different image
+# over time. Shared by both stages. Update tag and digest together.
+ARG PYTHON_IMAGE=python:3.11.16-slim-trixie@sha256:9534e5a8e315485d4061ed659af0fd78a284c015f9b73661b41d6bab25604534
+
+FROM ${PYTHON_IMAGE} AS builder
 
 # Grab the pinned `uv` binary from its own distroless image rather than
 # installing it via pip/curl into the build environment.
@@ -32,7 +37,7 @@ COPY src/ src/
 RUN --mount=type=cache,target=/root/.cache/uv \
     uv sync --locked --no-dev
 
-FROM python:3.11-slim AS runtime
+FROM ${PYTHON_IMAGE} AS runtime
 
 RUN useradd --create-home --uid 1000 appuser
 WORKDIR /app
