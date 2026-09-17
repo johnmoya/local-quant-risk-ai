@@ -21,7 +21,7 @@
   before being returned, and M7 is not done until both the pass and reject
   paths of that check are tested.
 
-## Milestones
+## v1 — Classical Quant Risk Engine (M0–M10, released as `v1.0.0`)
 
 | Milestone | Scope |
 |---|---|
@@ -35,8 +35,74 @@
 | **M7** | Ollama integration: client, prompt templates, `/explain` endpoint. **Mandatory, tested post-hoc numeric-consistency check** (`numeric_check.py`) gating every returned explanation |
 | **M8** | Dockerization: API Dockerfile, `docker-compose.yml` wiring API + Ollama, model volume |
 | **M9** | Documentation: README, `architecture.md`, `math_reference.md`, `api_reference.md` completed |
-| **M10** | Hardening pass: edge cases, structured logging, error handling, optional CI pipeline |
-| **M11** | Multi-asset portfolios: `Portfolio`/`Position` types, covariance matrix, `RiskResult.asset_ids` populated beyond length 1. No `RiskResult`/API/LLM schema break expected — that's the point of the M0 design |
+| **M10** | Hardening pass: edge cases, structured logging, error handling, optional CI pipeline (CI delivered with the `v1.0.0` release: GitHub Actions installing from `uv.lock`) |
 
 M1–M6 must each work standalone (no Ollama, no Docker required) — those are
 additive layers on top, not dependencies of the core engine or API.
+
+`v1.0.0` is the frozen baseline: its numeric results are the reference
+every v2 milestone must reproduce unchanged for the single-asset classical
+methods (the known-answer tests in `docs/math_reference.md` stay green).
+
+## v2 — Quant Risk + ML Engineering platform (planned, not implemented)
+
+v1 stays the **Classical Quant Risk Engine**. v2 evolves it progressively
+into a Quant Risk + ML Engineering platform: first broadening the
+classical engine (portfolios, factors, volatility), then adding learned
+models to it, then the MLOps lifecycle around those models. Each milestone
+is additive; none may change a v1 result.
+
+### Architectural principle, restated before M14
+
+v1 phrased its core rule as "the LLM never performs risk calculations",
+and the risk engine was, in practice, closed-form and simulation methods
+only. Once trained models enter the engine (M14), that phrasing has to be
+precise about *what* is forbidden, or it will be misread as "no machine
+learning in risk figures". The rule is:
+
+> **Forbidden: the LLM producing or altering risk figures.**
+> **Allowed: trained statistical / ML models as a legitimate part of the
+> risk engine, provided they are versioned, seeded, reproducible, and
+> tested — i.e. deterministic given their artifact.**
+
+What separates the two is not "classical vs. learned" but *determinism
+and auditability*: a trained model loaded from a specific, versioned
+artifact with fixed seeds is a pure function of its inputs, exactly like
+Parametric VaR is a pure function of `mu` and `sigma`; a generative LLM
+answer is not, which is why it may only narrate an already-computed
+`RiskResult`, under the mandatory numeric-consistency check.
+
+Consequences that carry through all of v2:
+
+- **The boundary test stays valid and necessary.**
+  `tests/unit/risk/test_no_llm_dependency.py` (`risk/` never imports
+  `quant_risk_ai.llm` nor `quant_risk_ai.api`) is unchanged by this
+  restatement — ML models live *inside* `risk/`, the LLM stays *outside*
+  it. If anything it matters more in v2: with learned models in the
+  engine, the import boundary is what keeps "a model computed this" from
+  ever silently becoming "an LLM computed this".
+- **`risk/` stays I/O-free and logging-free.** Loading a model artifact
+  (from disk, MLflow, or a registry) happens at the boundary, outside
+  `risk/`; the engine receives the already-loaded model or its parameters
+  as an explicit input, the same way it receives a return series today.
+- **Training, tracking, registry, serving, monitoring and retraining
+  (M15–M18) live outside `risk/`.** They may import `risk/`; `risk/` never
+  imports them or their libraries (e.g. `mlflow`).
+- **Every model-produced figure is still a `RiskResult`**: non-negative,
+  finite, validated at construction, with `metadata` recording the model
+  identity (name, version, artifact hash, seed) needed to reproduce it.
+- **Numeric endpoints stay independent of Ollama**, and `/explain` keeps
+  its mandatory numeric-consistency check for model-produced results too.
+
+### v2 milestones
+
+| Milestone | Scope |
+|---|---|
+| **M11** | **Multi-asset portfolios**: `Portfolio`/`Position` types, covariance matrix, covariance-aware Historical/Parametric/Monte Carlo VaR and ES, `RiskResult.asset_ids` populated beyond length 1. No `RiskResult`/API/LLM schema break expected — that's the point of the M0 design |
+| **M12** | **Factor-based risk**: factor exposures and factor covariance, risk decomposition into factor and idiosyncratic components, marginal/component contributions per position |
+| **M13** | **Volatility forecasting**: time-varying volatility models (e.g. EWMA, GARCH-family) feeding VaR/ES as an alternative to static sample volatility; backtested with the existing M5 suite |
+| **M14** | **ML-based VaR / ES**: learned quantile/tail models inside the risk engine under the principle above — versioned artifacts, fixed seeds, reproducible training, known-answer and invariant tests (ES ≥ VaR, monotonicity in alpha), and M5 backtests against the classical baselines |
+| **M15** | **MLflow / experiment tracking**: parameters, metrics, seeds, data versions and artifacts for every training run, outside `risk/` |
+| **M16** | **Model registry + model serving**: registered, versioned model artifacts with promotion stages; serving through the API layer, loading artifacts at the boundary and passing them into `risk/` |
+| **M17** | **Data / prediction / performance monitoring**: input data drift, prediction distribution drift, and ongoing VaR performance via the M5 backtests (violation rates, traffic-light zone over time) |
+| **M18** | **Automated retraining**: retraining triggered by M17 signals or schedule, producing new versioned artifacts through M15/M16 — never replacing a served model without the same tests and backtests a manual release would pass |

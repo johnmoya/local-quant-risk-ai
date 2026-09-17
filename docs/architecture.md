@@ -27,10 +27,37 @@
 ```
 
 **The risk engine (`quant_risk_ai.risk`) has zero import dependency on the LLM
-package (`quant_risk_ai.llm`).** This is not just documented — it's enforced
-by `tests/unit/risk/test_no_llm_dependency.py`, which statically inspects
-every module under `risk/` for an import of `quant_risk_ai.llm` and fails the
-build if one appears.
+package (`quant_risk_ai.llm`) or the API package (`quant_risk_ai.api`).** This
+is not just documented — it's enforced by
+`tests/unit/risk/test_no_llm_dependency.py`, which statically inspects every
+module under `risk/` for an import of either package and fails the build if
+one appears.
+
+### The principle, stated precisely
+
+> **Forbidden: the LLM producing or altering risk figures.**
+> **Allowed: statistical / ML models trained for the task, as a legitimate
+> part of the risk engine — provided they are versioned, seeded,
+> reproducible, and tested, i.e. deterministic given their artifact.**
+
+In v1 every method in `risk/` is closed-form or seeded simulation, so the
+shorter phrasing "the LLM never performs risk calculations" was enough.
+The v2 roadmap (`docs/roadmap.md`, M14) introduces learned VaR/ES models
+into the engine, and the rule was restated before that point so it can't
+be misread as "no machine learning in risk figures". The dividing line is
+determinism and auditability, not classical-vs-learned: a model loaded
+from a specific versioned artifact with fixed seeds is a pure function of
+its inputs, just as Parametric VaR is a pure function of `mu` and `sigma`;
+an LLM's generated text is not, so it may only narrate an already-computed
+`RiskResult`.
+
+Under this formulation the boundary test above remains valid and
+necessary, unchanged: learned models live *inside* `risk/`, the LLM stays
+*outside* it, and the import boundary is what guarantees a risk figure can
+never come from the LLM layer. The other `risk/` invariants also carry
+over — no I/O and no logging (a model artifact is loaded at the boundary
+and passed in, never read from disk or a registry by `risk/` itself), and
+every result is a validated, finite `RiskResult`.
 
 The LLM layer's only legal input is a finished `RiskResult`
 (`src/quant_risk_ai/risk/results.py`). It is never given raw price/return
