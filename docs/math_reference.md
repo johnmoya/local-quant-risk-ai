@@ -27,6 +27,56 @@ when composing VaR figures with P&L or capital figures downstream. Fixing
 one convention project-wide, and enforcing it at the data-contract level
 rather than trusting every call site, removes that entire class of bug.
 
+## Price input contract (`data/loaders.py`)
+
+`load_price_series` reads a CSV with a date column and a price column and
+returns a chronologically sorted, duplicate-free, date-indexed price
+series. Missing (`NaN`) prices are preserved for the missing-price policy
+below; infinite prices are rejected.
+
+### Date parsing: one explicit format, never inferred (changed in v1.0.1)
+
+- **Default `date_format="ISO8601"`.** Year-first dates (`2026-01-02`, with
+  or without a time component such as `2026-01-02T00:00:00` or
+  `2026-01-02 00:00:00`) parse; anything else, including `01/02/2026`, is
+  rejected with a `DataValidationError` that names the expected format.
+- **Any other convention must be declared by the caller**, as an explicit
+  strftime format: `load_price_series(path, date_format="%d/%m/%Y")`.
+  Every row must match it exactly; a row that doesn't is an error, not a
+  best guess.
+- **Formats that re-enable inference are refused**: `date_format="mixed"`
+  or `None` raise `InvalidParameterError`.
+
+**Why this changed.** Up to v1.0.0 the loader called `pd.to_datetime`
+without a format, which lets pandas guess, and both of its guessing modes
+could silently corrupt a series:
+
+1. *Format inferred from the first row, applied to all.* A file with three
+   consecutive January days written day-first — `03/01/2026`,
+   `02/01/2026`, `01/01/2026` — was read month-first as 1 Jan, 1 Feb and
+   1 Mar, with no warning.
+2. *Per-row fallback when the first row defeats inference.* Each row was
+   parsed independently by `dateutil`, so in one column `01/05/2026` became
+   5 Jan (month-first) while `13/01/2026` became 13 Jan (day-first); the
+   only signal was a `UserWarning`.
+
+In both cases the loader then sorted the index, so the result looked like a
+normal chronological series; the sort hid the corruption instead of
+exposing it. Wrong dates flow into returns, sample sizes, `as_of`, and
+backtest alignment without any error. A third, related failure is also
+closed: compact numeric dates such as `20260102` were typed as integers by
+`read_csv` and read as nanoseconds since 1970. The date column is now read
+as text and always parsed with an explicit format. See
+`tests/unit/data/test_loaders.py::test_ambiguous_day_first_dates_are_rejected_not_misread`
+and `test_rows_are_never_interpreted_inconsistently`.
+
+**Contract change for callers.** A non-ISO CSV that v1.0.0 accepted (by
+guessing) now fails until its format is passed explicitly. ISO 8601 files
+are unaffected, and ISO timestamps that mix `T` and space separators,
+which v1.0.0 rejected, are now accepted. pandas' ISO 8601 mode is lenient
+about year-first variants (`2026/01/02`, `2026-1-2`, and month-only
+`2026-01`, read as the 1st); none of these can swap day and month.
+
 ## Return convention
 
 **Log returns are the default**: `r_t = ln(P_t / P_{t-1})`. Simple returns
