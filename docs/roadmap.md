@@ -44,6 +44,21 @@ additive layers on top, not dependencies of the core engine or API.
 every v2 milestone must reproduce unchanged for the single-asset classical
 methods (the known-answer tests in `docs/math_reference.md` stay green).
 
+`v1.0.1` is a patch release that changes no risk figure: explicit CSV date
+formats in `data/loaders.py` (see `docs/math_reference.md`), Docker base
+images pinned by digest, `uv sync --locked` in CI, the `risk/` no-I/O rule
+enforced by test, and CI on Python 3.11/3.12 including release tags.
+
+### Maintenance backlog
+
+- **Starlette `TestClient` on `httpx` is deprecated.** pytest reports
+  `StarletteDeprecationWarning: Using httpx with starlette.testclient is
+  deprecated; install httpx2 instead` (plus an anyio `BlockingPortal` alias
+  deprecation from the same stack). It works today but will break when
+  Starlette removes `httpx` support. Handle it in a future dependency bump:
+  move the test client to `httpx2`, re-lock, and confirm the API tests and
+  warnings are clean on both CI Python versions.
+
 ## v2 — Quant Risk + ML Engineering platform (planned, not implemented)
 
 v1 stays the **Classical Quant Risk Engine**. v2 evolves it progressively
