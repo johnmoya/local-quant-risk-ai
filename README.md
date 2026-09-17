@@ -17,7 +17,11 @@ scope decisions and milestones.
 
 ## Status
 
-**`v1.0.0` — Classical Quant Risk Engine (M0–M10).** Through **M10**
+**`v1.0.1` — Classical Quant Risk Engine (M0–M10).** `v1.0.1` is a patch
+release on `v1.0.0` with no change to any risk figure: CSV dates are parsed
+with one explicit format instead of being inferred (non-ISO files now need
+`date_format`, see `docs/math_reference.md`), Docker base images are pinned
+by digest, and the risk engine's no-I/O rule is enforced by test. Through **M10**
 (hardening pass): the data layer, all three VaR/ES
 methods, the backtesting suite, the FastAPI service (`/var`,
 `/expected-shortfall`, `/backtest`), and the Ollama-backed `/explain`
@@ -30,8 +34,9 @@ now rejected with a clear error instead of silently propagating), and a
 catch-all handler ensuring an unhandled exception always returns a clean
 500 rather than leaking framework-specific output. CI
 (`.github/workflows/ci.yml`) runs pytest, ruff check, ruff format --check
-and mypy on every push and pull request, installing strictly from
-`uv.lock`; it needs neither Ollama nor Docker. See `docs/roadmap.md` for
+and mypy on Python 3.11 and 3.12 for every branch push, pull request and
+`v*` release tag, installing with `uv sync --locked` (a stale `uv.lock`
+fails the build); it needs neither Ollama nor Docker. See `docs/roadmap.md` for
 the planned v2 direction (M11–M18: from multi-asset portfolios toward a
 Quant Risk + ML Engineering platform).
 
