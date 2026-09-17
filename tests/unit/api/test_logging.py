@@ -10,6 +10,10 @@ message, extra fields) is emitted for each outcome, not how it's rendered.
 import logging
 from typing import Any
 
+from fastapi import FastAPI
+from fastapi.testclient import TestClient
+
+from quant_risk_ai.api import main
 from tests.unit.api._helpers import make_series_payload
 
 
@@ -68,11 +72,14 @@ def test_client_error_is_logged_at_info_not_warning(client, caplog):
 
 
 def test_unhandled_exception_is_logged_at_error_with_traceback(caplog):
-    from fastapi.testclient import TestClient
+    # A throwaway app wired with the production middleware and catch-all
+    # handler from api/main.py, so the failing route never gets registered
+    # on the real app shared by every other test in the session.
+    isolated_app = FastAPI()
+    isolated_app.middleware("http")(main._log_requests)
+    isolated_app.add_exception_handler(Exception, main._unhandled_exception_handler)
 
-    from quant_risk_ai.api.main import app
-
-    @app.get("/__test_unhandled_error")
+    @isolated_app.get("/__test_unhandled_error")
     def _boom():  # pragma: no cover - executed via the test client below
         raise RuntimeError("deliberate test failure")
 
@@ -81,7 +88,7 @@ def test_unhandled_exception_is_logged_at_error_with_traceback(caplog):
     # catching real bugs in other tests), which would bypass exactly the
     # `Exception` handler this test exists to verify — a non-Python HTTP
     # client would only ever see the 500 response, never the exception.
-    non_raising_client = TestClient(app, raise_server_exceptions=False)
+    non_raising_client = TestClient(isolated_app, raise_server_exceptions=False)
 
     with caplog.at_level(logging.INFO):
         response = non_raising_client.get("/__test_unhandled_error")
@@ -97,3 +104,6 @@ def test_unhandled_exception_is_logged_at_error_with_traceback(caplog):
     # docstring on why this needs its own try/except to guarantee that.
     access_record = _record(caplog, "request completed")
     assert _extra(access_record, "status_code") == 500
+
+    real_app_paths = {getattr(route, "path", None) for route in main.app.routes}
+    assert "/__test_unhandled_error" not in real_app_paths
