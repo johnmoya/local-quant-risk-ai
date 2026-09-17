@@ -2,14 +2,24 @@ name: CI
 
 on:
   push:
+    # Listing only `tags` would stop branch pushes from triggering the
+    # workflow, so both are explicit: every branch, and every release tag.
+    branches: ["**"]
+    tags: ["v*"]
   pull_request:
+  workflow_dispatch:
 
 permissions:
   contents: read
 
 jobs:
   checks:
+    name: checks (Python ${{ matrix.python-version }})
     runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.12"]
     env:
       # Use the interpreter from setup-python, never a uv-downloaded one.
       UV_PYTHON_DOWNLOADS: never
@@ -18,12 +28,12 @@ jobs:
 
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
         with:
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: "0.12.5"
-          python-version: "3.11"
+          python-version: ${{ matrix.python-version }}
 
       # --locked installs exactly what uv.lock pins and fails if uv.lock is
       # out of date with pyproject.toml (--frozen would silently use the
@@ -35,6 +45,7 @@ jobs:
       - name: Tool versions
         run: |
           uv run --no-sync python --version
+          uv run --no-sync python -c "import numpy, scipy, pandas; print('numpy', numpy.__version__, 'scipy', scipy.__version__, 'pandas', pandas.__version__)"
           uv run --no-sync ruff --version
           uv run --no-sync mypy --version
 
@@ -47,5 +58,9 @@ jobs:
       - name: ruff format --check
         run: uv run --no-sync ruff format --check .
 
+      # uv.lock resolves a newer numpy for 3.12 whose stubs use 3.12-only
+      # syntax, so each leg type-checks against its own interpreter version.
+      # pyproject.toml's python_version = "3.11" stays the local default, and
+      # the 3.11 leg keeps guaranteeing 3.11 compatibility.
       - name: mypy
-        run: uv run --no-sync mypy src tests
+        run: uv run --no-sync mypy --python-version ${{ matrix.python-version }} src tests
