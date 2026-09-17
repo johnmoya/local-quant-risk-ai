@@ -51,9 +51,7 @@ def test_converges_to_parametric_var_at_large_n():
 
 
 def test_result_metadata_and_shape():
-    asset_returns = make_asset_returns(
-        [0.01, -0.02, 0.03, -0.04], asset_id="AAPL", currency="EUR"
-    )
+    asset_returns = make_asset_returns([0.01, -0.02, 0.03, -0.04], asset_id="AAPL", currency="EUR")
 
     result = monte_carlo_var(asset_returns, alpha=0.95, position_value=1_000.0, seed=42)
 

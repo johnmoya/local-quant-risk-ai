@@ -36,9 +36,7 @@ def _client_returning(text: str) -> OllamaClient:
 
 
 def test_returns_validated_explanation():
-    client = _client_returning(
-        "At the 99% confidence level, the 1-day VaR for AAPL is 1234.56."
-    )
+    client = _client_returning("At the 99% confidence level, the 1-day VaR for AAPL is 1234.56.")
 
     explanation = generate_explanation(_RESULT, client)
 
