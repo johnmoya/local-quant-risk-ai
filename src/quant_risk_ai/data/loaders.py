@@ -15,12 +15,22 @@ Validation contract (deliberately strict — see docs/math_reference.md):
   data/returns.py owns the documented missing-price policy when converting
   to returns. This loader only validates the *date index*, not price
   completeness.
+- Infinite price values (unlike NaN) ARE rejected here, not preserved:
+  `pd.Series.astype(float)` silently parses a literal "inf"/"Infinity"
+  price cell into `float('inf')` with no error, and an infinite price
+  would otherwise flow silently into compute_returns (an infinite return)
+  and from there into the risk engine — never triggering a domain-specific
+  error, just eventually contaminating a VaR/ES figure. NaN is a documented
+  *missing-data* marker with its own downstream policy; infinity is not a
+  legitimate price under any policy, so it's rejected at the earliest
+  possible point instead.
 """
 
 from __future__ import annotations
 
 from pathlib import Path
 
+import numpy as np
 import pandas as pd
 
 from quant_risk_ai.core.exceptions import DataValidationError
@@ -40,7 +50,9 @@ def load_price_series(
     given, else `price_column`.
 
     Raises DataValidationError if required columns are missing, dates
-    don't parse, dates are duplicated, or prices aren't numeric.
+    don't parse, dates are duplicated, prices aren't numeric, or a price is
+    infinite (NaN prices are preserved, not rejected — see the module
+    docstring).
     """
     path = Path(path)
     df = pd.read_csv(path)
@@ -69,6 +81,11 @@ def load_price_series(
         raise DataValidationError(
             f"CSV at {path} contains non-numeric values in column {price_column!r}"
         ) from exc
+
+    if np.isinf(price_values).any():
+        raise DataValidationError(
+            f"CSV at {path} contains infinite values in column {price_column!r}"
+        )
 
     series = pd.Series(
         data=price_values,

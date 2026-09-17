@@ -96,6 +96,19 @@ def test_preserves_nan_prices_instead_of_dropping(tmp_path):
     assert pd.isna(series.iloc[1])
 
 
+def test_raises_on_infinite_price(tmp_path):
+    # "inf" parses silently to float('inf') via astype(float) — unlike a
+    # non-numeric string, this wouldn't be caught by the non-numeric check
+    # above, so it needs its own explicit rejection (see module docstring).
+    csv_path = _write_csv(
+        tmp_path,
+        "date,price\n2026-01-01,100.0\n2026-01-02,inf\n2026-01-03,102.0\n",
+    )
+
+    with pytest.raises(DataValidationError, match="infinite"):
+        load_price_series(csv_path)
+
+
 def test_custom_column_names_and_asset_id(tmp_path):
     csv_path = _write_csv(tmp_path, "trade_date,close_px\n2026-01-01,100.0\n2026-01-02,105.0\n")
 

@@ -35,6 +35,28 @@ def validate_alpha(alpha: float) -> None:
         raise InvalidParameterError(f"alpha (confidence level) must be in (0, 1), got {alpha}")
 
 
+def validate_position_value(position_value: float) -> None:
+    """`position_value` is a multiplier applied directly to a return-space
+    quantile/tail-mean (see `signed_loss_magnitude`), so an invalid value
+    here doesn't fail loudly on its own — it silently produces an invalid
+    `RiskResult.value` instead (negative, from a negative position_value
+    flipping the sign; or non-finite, from an infinite one). Catching it
+    here, at the one place every VaR/ES function and
+    `backtesting.compute_violations` calls before doing that
+    multiplication, gives a clear error that actually names
+    `position_value` as the problem, rather than a confusing downstream
+    complaint about `value` or `RiskResult` itself.
+
+    A position of exactly 0 is a legitimate (if degenerate) edge case — a
+    zero position has zero risk — so only negative and non-finite values
+    are rejected.
+    """
+    if not math.isfinite(position_value):
+        raise InvalidParameterError(f"position_value must be finite, got {position_value}")
+    if position_value < 0:
+        raise InvalidParameterError(f"position_value must be non-negative, got {position_value}")
+
+
 def min_required_observations(alpha: float) -> int:
     """Minimum sample size for the (1 - alpha) empirical quantile to be
     backed by at least one real tail observation, rather than being pure

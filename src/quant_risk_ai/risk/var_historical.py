@@ -21,6 +21,7 @@ from quant_risk_ai.risk.stats_utils import (
     scale_to_horizon,
     signed_loss_magnitude,
     validate_alpha,
+    validate_position_value,
     validate_sample_size,
 )
 
@@ -42,11 +43,13 @@ def historical_var(
 
     Raises:
         InvalidParameterError: alpha is not in the open interval (0, 1),
-            or horizon_days is not a positive integer.
+            position_value is negative or non-finite, or horizon_days is
+            not a positive integer.
         InsufficientSampleSizeError: fewer observations than
             stats_utils.min_required_observations(alpha) are available.
     """
     validate_alpha(alpha)
+    validate_position_value(position_value)
     returns = asset_returns.returns
     validate_sample_size(len(returns), alpha)
 

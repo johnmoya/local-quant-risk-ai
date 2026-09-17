@@ -15,13 +15,17 @@ numeric-consistency check or the caller.
 
 from __future__ import annotations
 
+import logging
 import re
+import time
 from dataclasses import dataclass
 
 import httpx
 
 from quant_risk_ai import config
 from quant_risk_ai.core.exceptions import LLMUnavailableError
+
+logger = logging.getLogger(__name__)
 
 _THINK_BLOCK_RE = re.compile(r"<think>.*?</think>", re.DOTALL)
 
@@ -37,6 +41,7 @@ class OllamaClient:
     client: httpx.Client
 
     def generate(self, prompt: str, *, think: bool = False) -> str:
+        start = time.perf_counter()
         try:
             response = self.client.post(
                 "/api/generate",
@@ -45,17 +50,37 @@ class OllamaClient:
             response.raise_for_status()
             payload = response.json()
         except httpx.HTTPError as exc:
+            logger.warning(
+                "Ollama request failed",
+                extra={
+                    "model": self.model,
+                    "duration_ms": round((time.perf_counter() - start) * 1000, 2),
+                    "error": str(exc),
+                },
+            )
             raise LLMUnavailableError(f"Ollama request failed: {exc}") from exc
         except ValueError as exc:
+            logger.warning(
+                "Ollama returned a non-JSON response",
+                extra={"model": self.model, "error": str(exc)},
+            )
             raise LLMUnavailableError(f"Ollama returned a non-JSON response: {exc}") from exc
 
         try:
             text = payload["response"]
         except (KeyError, TypeError) as exc:
+            logger.warning(
+                "Ollama response is missing the 'response' field",
+                extra={"model": self.model, "payload": payload},
+            )
             raise LLMUnavailableError(
                 f"Ollama response is missing the 'response' field: {payload!r}"
             ) from exc
 
+        duration_ms = round((time.perf_counter() - start) * 1000, 2)
+        logger.info(
+            "Ollama request completed", extra={"model": self.model, "duration_ms": duration_ms}
+        )
         return _THINK_BLOCK_RE.sub("", text).strip()
 
 

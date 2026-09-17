@@ -25,6 +25,9 @@ DEFAULT_TEST_CONFIDENCE: float = float(
 
 OLLAMA_BASE_URL: str = os.environ.get("QUANT_RISK_AI_OLLAMA_BASE_URL", "http://localhost:11434")
 OLLAMA_MODEL: str = os.environ.get("QUANT_RISK_AI_OLLAMA_MODEL", "qwen3:8b")
-OLLAMA_TIMEOUT_SECONDS: float = float(
-    os.environ.get("QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS", "60")
-)
+OLLAMA_TIMEOUT_SECONDS: float = float(os.environ.get("QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS", "60"))
+
+# M10: structured logging (core/logging.py). A plain string, not a
+# logging.Level int, so it stays a simple env-var round trip; core/logging.py
+# owns turning it into something logging.Logger.setLevel accepts.
+LOG_LEVEL: str = os.environ.get("QUANT_RISK_AI_LOG_LEVEL", "INFO")

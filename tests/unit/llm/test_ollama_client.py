@@ -5,6 +5,8 @@ to substitute the HTTP boundary instead of talking to a real Ollama
 instance.
 """
 
+import logging
+
 import httpx
 import pytest
 
@@ -79,3 +81,29 @@ def test_non_json_body_raises_llm_unavailable():
 
     with pytest.raises(LLMUnavailableError):
         _client(handler).generate("prompt")
+
+
+def test_successful_generate_logs_completion(caplog):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"response": "text"})
+
+    with caplog.at_level(logging.INFO):
+        _client(handler).generate("prompt")
+
+    records = [r for r in caplog.records if "Ollama request completed" in r.message]
+    assert records, [r.message for r in caplog.records]
+    assert records[0].levelname == "INFO"
+    assert records[0].model == "qwen3:8b"
+    assert isinstance(records[0].duration_ms, float)
+
+
+def test_connection_failure_logs_warning(caplog):
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused", request=request)
+
+    with caplog.at_level(logging.INFO), pytest.raises(LLMUnavailableError):
+        _client(handler).generate("prompt")
+
+    records = [r for r in caplog.records if "Ollama request failed" in r.message]
+    assert records, [r.message for r in caplog.records]
+    assert records[0].levelname == "WARNING"

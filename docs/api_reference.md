@@ -48,9 +48,17 @@ Three endpoints, one per VaR method, all returning `RiskResultResponse`
 
 Shared request fields (`VaRRequest`): `series`, `alpha` (default
 `0.99`), `position_value`, `horizon_days` (default `1`), `as_of`
-(optional — defaults to the series' last date). `horizon_days` applies the
-sqrt(t) scaling described in `docs/math_reference.md`'s "Time horizon
-scaling" section to the returned `value` — it is a real, functional
+(optional — defaults to the series' last date). `position_value` must be
+non-negative and finite (M10 hardening pass — see
+`risk/stats_utils.py::validate_position_value`): a negative value would
+silently flip the sign of the reported loss, and a non-finite one (e.g.
+`position_value: 1e400`, a syntactically valid JSON literal that overflows
+float parsing to infinity) would silently produce a non-finite `value`;
+both are now rejected as a 422 that names `position_value` specifically,
+rather than surfacing as a broken-looking `"value": null` or a confusing
+error blaming something else. `horizon_days` applies the sqrt(t) scaling
+described in `docs/math_reference.md`'s "Time horizon scaling" section to
+the returned `value` — it is a real, functional
 parameter, not just an echoed label.
 
 The example below reuses `docs/math_reference.md`'s historical-VaR worked
@@ -191,7 +199,22 @@ the form `{"detail": "<message>"}`:
 | `DataValidationError`, `InsufficientDataError`, `InsufficientSampleSizeError`, `InvalidParameterError` | 422 |
 | `LLMUnavailableError` (`/explain` only) | 503 |
 | `NumericConsistencyError` (`/explain` only) | 502 |
-| anything not a `QuantRiskAIError` | 500 (a genuine bug, left to propagate — never mapped) |
+| anything not a `QuantRiskAIError` | 500, body `{"detail": "Internal server error"}` — a genuine bug, logged at ERROR with a full traceback (see "Logging" below) rather than left to leak framework-specific error output |
+
+## Logging
+
+M10 adds structured (single-line JSON) logging via `core/logging.py`,
+configured once at API startup and written to stdout — the primary view
+into a `docker compose`-run instance (see M8's "Running with Docker" in
+the root `README.md`). Every request gets one `"request completed"` line
+(`method`, `path`, `status_code`, `duration_ms`), regardless of outcome
+including a 500; the four exception handlers above each add their own
+line first (`INFO` for a 422 — expected client-input rejection, not an
+operational concern; `WARNING` for the two `/explain`-specific failures;
+`ERROR` with a traceback for anything unhandled). `QUANT_RISK_AI_LOG_LEVEL`
+(default `INFO`) controls the root logger's level — see `.env.example`.
+Deliberately not used inside `risk/*`: see `docs/architecture.md`'s note
+on why the risk engine stays I/O-free.
 
 ## Request defaults
 

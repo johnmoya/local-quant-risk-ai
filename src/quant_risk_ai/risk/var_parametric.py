@@ -28,6 +28,7 @@ from quant_risk_ai.risk.stats_utils import (
     signed_loss_magnitude,
     validate_alpha,
     validate_parametric_sample_size,
+    validate_position_value,
 )
 
 
@@ -48,10 +49,12 @@ def parametric_var(
 
     Raises:
         InvalidParameterError: alpha is not in the open interval (0, 1),
-            or horizon_days is not a positive integer.
+            position_value is negative or non-finite, or horizon_days is
+            not a positive integer.
         InsufficientDataError: fewer than 2 observations are available.
     """
     validate_alpha(alpha)
+    validate_position_value(position_value)
     returns = asset_returns.returns
     validate_parametric_sample_size(len(returns))
 
