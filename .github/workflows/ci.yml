@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    env:
+      # Use the interpreter from setup-python, never a uv-downloaded one.
+      UV_PYTHON_DOWNLOADS: never
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: "3.11"
+
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: "0.12.5"
+          python-version: "3.11"
+
+      # --frozen installs exactly what uv.lock pins, with no re-resolution:
+      # unpinned tool versions already caused drift twice (mypy in M5,
+      # ruff format in M9).
+      - name: Install dependencies from uv.lock
+        run: uv sync --frozen --extra dev
+
+      - name: Tool versions
+        run: |
+          uv run --no-sync python --version
+          uv run --no-sync ruff --version
+          uv run --no-sync mypy --version
+
+      - name: pytest
+        run: uv run --no-sync pytest
+
+      - name: ruff check
+        run: uv run --no-sync ruff check .
+
+      - name: ruff format --check
+        run: uv run --no-sync ruff format --check .
+
+      - name: mypy
+        run: uv run --no-sync mypy src tests
