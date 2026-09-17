@@ -55,9 +55,7 @@ def backtest_christoffersen(
     )
     return ChristoffersenBacktestResponse(
         independence=LikelihoodRatioTestResultResponse.model_validate(independence),
-        conditional_coverage=LikelihoodRatioTestResultResponse.model_validate(
-            conditional_coverage
-        ),
+        conditional_coverage=LikelihoodRatioTestResultResponse.model_validate(conditional_coverage),
     )
 
 

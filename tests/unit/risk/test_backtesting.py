@@ -150,9 +150,7 @@ def test_independence_clustered_violations_are_detected():
     pi01, pi11 = 1 / 10, 9 / 9
     pi = 10 / 19
     log_l_null = xlogy(n00 + n10, 1 - pi) + xlogy(n01 + n11, pi)
-    log_l_alt = (
-        xlogy(n00, 1 - pi01) + xlogy(n01, pi01) + xlogy(n10, 1 - pi11) + xlogy(n11, pi11)
-    )
+    log_l_alt = xlogy(n00, 1 - pi01) + xlogy(n01, pi01) + xlogy(n10, 1 - pi11) + xlogy(n11, pi11)
     expected_statistic = -2.0 * (log_l_null - log_l_alt)
 
     result = christoffersen_independence_test(violations)
