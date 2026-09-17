@@ -17,7 +17,8 @@ scope decisions and milestones.
 
 ## Status
 
-Through **M10** (hardening pass): the data layer, all three VaR/ES
+**`v1.0.0` — Classical Quant Risk Engine (M0–M10).** Through **M10**
+(hardening pass): the data layer, all three VaR/ES
 methods, the backtesting suite, the FastAPI service (`/var`,
 `/expected-shortfall`, `/backtest`), and the Ollama-backed `/explain`
 endpoint are implemented and tested, the whole stack runs under
@@ -27,10 +28,11 @@ JSON logging, a numeric-edge-case audit (non-finite/negative
 `position_value`, infinite prices, non-finite `RiskResult` fields — all
 now rejected with a clear error instead of silently propagating), and a
 catch-all handler ensuring an unhandled exception always returns a clean
-500 rather than leaking framework-specific output. M10's CI-pipeline item
-is deferred: this repo has no configured git remote yet, so there's
-nowhere for one to run. See `docs/roadmap.md` for what's next (M11:
-multi-asset portfolios).
+500 rather than leaking framework-specific output. CI
+(`.github/workflows/ci.yml`) runs pytest, ruff check, ruff format --check
+and mypy on every push and pull request, installing strictly from
+`uv.lock`; it needs neither Ollama nor Docker. See `docs/roadmap.md` for
+what's next (M11: multi-asset portfolios).
 
 ## Project layout
 
