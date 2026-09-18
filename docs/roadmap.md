@@ -59,6 +59,30 @@ enforced by test, and CI on Python 3.11/3.12 including release tags.
   move the test client to `httpx2`, re-lock, and confirm the API tests and
   warnings are clean on both CI Python versions.
 
+- **pandas' ISO 8601 mode is lenient in two ways** that `data/loaders.py`
+  currently accepts (see `docs/math_reference.md`, "Price input contract"):
+  a month-only date (`2026-01`) is read as the 1st of that month, and a
+  `Z`/offset suffix produces a timezone-aware index that will not align
+  with naive dates elsewhere. Neither can swap day and month — the bug
+  v1.0.1 fixed — so this is tightening, not a correctness hole. Decide
+  whether to require day precision and reject (or normalize) timezone
+  offsets, and pin the choice with tests the same way v1.0.1 did.
+
+- **mypy's `python_version = "3.11"` in `pyproject.toml` breaks `mypy` on a
+  3.12 interpreter.** `uv.lock` resolves numpy 2.5.3 for 3.12, whose stubs
+  use PEP 695 `type` statements; checked against a 3.11 target they are a
+  syntax error, so a contributor developing on 3.12 sees
+  `numpy/__init__.pyi: Type statement is only supported in Python 3.12 and
+  greater` from a plain `mypy src tests`. Confirmed by experiment: the
+  failure follows the *target version*, not the config location — removing
+  the pin and forcing `--python-version 3.11` on a 3.12 environment fails
+  identically, while removing the pin and letting mypy default to the
+  running interpreter passes. Recommended fix: drop `python_version` from
+  `pyproject.toml` so mypy follows the active interpreter, and keep CI
+  passing `--python-version` explicitly per matrix leg (it already does),
+  where the 3.11 leg remains the guarantee of 3.11 compatibility. Not
+  applied yet because it changes the default for every local run.
+
 ## v2 — Quant Risk + ML Engineering platform (planned, not implemented)
 
 v1 stays the **Classical Quant Risk Engine**. v2 evolves it progressively
