@@ -55,7 +55,12 @@ select = ["E", "F", "I", "UP", "B"]
 extend-immutable-calls = ["fastapi.Depends"]
 
 [tool.mypy]
-python_version = "3.11"
+# No python_version pin: mypy follows the interpreter it runs under. Pinning
+# 3.11 made a plain `mypy src tests` fail on a 3.12 interpreter, because
+# uv.lock resolves numpy 2.5.3 there and its stubs use PEP 695 `type`
+# statements, which are a syntax error under a 3.11 target. CI passes
+# --python-version per matrix leg, and the 3.11 leg is what guarantees 3.11
+# compatibility.
 mypy_path = "src"
 namespace_packages = true
 explicit_package_bases = true
