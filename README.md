@@ -117,6 +117,52 @@ is the one exception, fixed to the `ollama` service name in
 `docker-compose.yml` regardless of what's in `.env`, since `localhost` has
 no meaning inside the `api` container.
 
+## Explanations and hardware
+
+The numeric endpoints (`/var`, `/expected-shortfall`, `/backtest`) are
+plain numpy/scipy and answer in milliseconds on any machine. **`/explain`
+runs Qwen3 8B locally, and that is the part whose speed depends on your
+hardware.** The stack runs on CPU out of the box — no GPU required — but
+expect to wait.
+
+Measured end to end through `POST /explain` (request to response) on an
+RTX 5070 and a 16-thread CPU with 23 GB RAM, model already pulled:
+
+| | First call (loads the model) | Subsequent calls |
+|---|---|---|
+| CPU only (default) | ~19 s | ~7 s |
+| GPU (overlay below) | ~39 s | ~0.7 s |
+
+The first call pays for loading ~5 GB of weights (into RAM, or into VRAM
+for GPU); Ollama keeps the model loaded for about 5 minutes of inactivity,
+so calls in that window are the "subsequent" column. A slower CPU than the
+one above will take proportionally longer.
+
+**Timeout.** `QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS` defaults to `180`,
+chosen to cover the first call comfortably on hardware like the above and
+leave room for slower CPU-only machines. If `/explain` returns
+`503 Ollama request failed: timed out` on your machine, raise it in `.env`
+— the numeric endpoints are unaffected either way, by design. Note that the
+first `/explain` call after `docker compose exec ollama ollama pull
+qwen3:8b` is the slowest one you'll see.
+
+**Using a GPU (optional).** `docker-compose.gpu.yml` adds an NVIDIA device
+reservation. It is a separate overlay file on purpose: a device reservation
+fails at `docker compose up` on a machine without an NVIDIA GPU and the
+[NVIDIA Container Toolkit](https://github.com/NVIDIA/nvidia-container-toolkit),
+so the default `docker compose up -d` stays portable.
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+
+# Confirm the model is actually on the GPU (PROCESSOR column):
+docker compose exec ollama ollama ps
+```
+
+Under WSL2 the Windows NVIDIA driver provides the GPU; you still need the
+NVIDIA Container Toolkit installed inside the distro so Docker gets its
+`nvidia` runtime.
+
 ## Logging
 
 The API logs one structured JSON line per request to stdout (`method`,

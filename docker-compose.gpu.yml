@@ -1,0 +1,22 @@
+# GPU overlay for docker-compose.yml. Opt-in, because a device reservation
+# fails at `docker compose up` on a host without an NVIDIA GPU and the
+# NVIDIA Container Toolkit — and whoever reviews this repository probably
+# doesn't have one. The base stack therefore stays CPU-only and portable:
+#
+#   docker compose up -d                                        # CPU
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d
+#
+# Requires: an NVIDIA GPU, the driver, and the NVIDIA Container Toolkit
+# (`nvidia-ctk`), which registers the `nvidia` runtime with Docker. Under
+# WSL2 the Windows driver provides this; no driver is installed inside the
+# distro. See the README's "Explanations and hardware" section for the
+# latency difference this buys.
+services:
+  ollama:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
