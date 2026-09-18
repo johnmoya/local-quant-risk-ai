@@ -68,20 +68,20 @@ enforced by test, and CI on Python 3.11/3.12 including release tags.
   whether to require day precision and reject (or normalize) timezone
   offsets, and pin the choice with tests the same way v1.0.1 did.
 
-- **mypy's `python_version = "3.11"` in `pyproject.toml` breaks `mypy` on a
-  3.12 interpreter.** `uv.lock` resolves numpy 2.5.3 for 3.12, whose stubs
-  use PEP 695 `type` statements; checked against a 3.11 target they are a
-  syntax error, so a contributor developing on 3.12 sees
-  `numpy/__init__.pyi: Type statement is only supported in Python 3.12 and
-  greater` from a plain `mypy src tests`. Confirmed by experiment: the
-  failure follows the *target version*, not the config location — removing
-  the pin and forcing `--python-version 3.11` on a 3.12 environment fails
-  identically, while removing the pin and letting mypy default to the
-  running interpreter passes. Recommended fix: drop `python_version` from
-  `pyproject.toml` so mypy follows the active interpreter, and keep CI
-  passing `--python-version` explicitly per matrix leg (it already does),
-  where the 3.11 leg remains the guarantee of 3.11 compatibility. Not
-  applied yet because it changes the default for every local run.
+- **One unexplained `/explain` timeout, observed once, cause not
+  identified.** On 2026-09-16, two consecutive first calls against a freshly
+  started stack exceeded the then-default 60s Ollama timeout and returned
+  503, with `ollama ps` showing no loaded model. It did not reproduce on
+  2026-09-18 under the same compose configuration and the same
+  digest-pinned image: the first call took 18.7s on CPU and 38.8s on GPU.
+  Disk was ruled out — reading the full 5.2 GB model blob with `O_DIRECT`
+  (bypassing the page cache) takes 2.7s at 1.9 GB/s — so the cost is model
+  load plus inference, not I/O. Mitigated, not fixed, by the 180s default
+  timeout (v1.0.2). If it recurs, capture the `ollama` container logs from
+  container start through the failing call before restarting anything; the
+  hypothesis worth testing first is contention between the healthcheck,
+  Ollama's startup cloud-hydration calls (which log
+  `context deadline exceeded` when offline) and the first model load.
 
 ## v2 — Quant Risk + ML Engineering platform (planned, not implemented)
 
