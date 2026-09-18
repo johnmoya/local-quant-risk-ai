@@ -6,34 +6,17 @@ tests/unit/risk/test_no_llm_dependency.py's approach, scoped to llm/.
 
 Static AST inspection is used instead of importing the modules, so this
 test fails on a stray `import quant_risk_ai.api` even in code paths that
-aren't otherwise exercised yet.
+aren't otherwise exercised yet. The scanner is shared with the risk/
+boundary test (tests/unit/_boundaries.py) and has its own tests in
+tests/unit/test_import_scanner.py; the copy this module used to carry
+missed `from quant_risk_ai import api` and relative imports.
 """
 
-import ast
-from pathlib import Path
+from tests.unit._boundaries import SRC_ROOT, find_forbidden_imports
 
-LLM_PACKAGE = Path(__file__).resolve().parents[3] / "src" / "quant_risk_ai" / "llm"
-
-
-def _imported_module_names(source: str) -> set[str]:
-    tree = ast.parse(source)
-    names: set[str] = set()
-    for node in ast.walk(tree):
-        if isinstance(node, ast.Import):
-            names.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            names.add(node.module)
-    return names
+LLM_PACKAGE = SRC_ROOT / "quant_risk_ai" / "llm"
 
 
 def test_llm_package_never_imports_api_package():
-    offending: list[str] = []
-    for py_file in LLM_PACKAGE.rglob("*.py"):
-        imported = _imported_module_names(py_file.read_text(encoding="utf-8"))
-        is_api_import = any(
-            name == "quant_risk_ai.api" or name.startswith("quant_risk_ai.api.")
-            for name in imported
-        )
-        if is_api_import:
-            offending.append(str(py_file))
+    offending = find_forbidden_imports(LLM_PACKAGE, "quant_risk_ai.api")
     assert not offending, f"llm/ modules must not import quant_risk_ai.api: {offending}"
