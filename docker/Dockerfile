@@ -13,8 +13,9 @@ ARG PYTHON_IMAGE=python:3.11.16-slim-trixie@sha256:9534e5a8e315485d4061ed659af0f
 FROM ${PYTHON_IMAGE} AS builder
 
 # Grab the pinned `uv` binary from its own distroless image rather than
-# installing it via pip/curl into the build environment.
-COPY --from=ghcr.io/astral-sh/uv:0.12.5 /uv /uvx /usr/local/bin/
+# installing it via pip/curl into the build environment. Pinned by digest
+# for the same reason as the base image above.
+COPY --from=ghcr.io/astral-sh/uv:0.12.5@sha256:e85be844203885286c60ffad8a858d48afb6c5a5c237ca0e67f12e74b8f174b1 /uv /uvx /usr/local/bin/
 
 WORKDIR /app
 
@@ -52,4 +53,10 @@ EXPOSE 8000
 HEALTHCHECK --interval=10s --timeout=5s --start-period=5s --retries=5 \
     CMD python -c "import urllib.request as u; u.urlopen('http://localhost:8000/openapi.json')"
 
-CMD ["uvicorn", "quant_risk_ai.api.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# --no-access-log: core/logging.py already emits one structured JSON line per
+# request (method, path, status_code, duration_ms). Uvicorn's own access log
+# is plain text and would duplicate every one of those lines, healthchecks
+# included. Uvicorn's startup/error messages are unaffected and stay on
+# stdout; routing them through the JSON formatter too would need a
+# --log-config file and is not worth the extra moving part here.
+CMD ["uvicorn", "quant_risk_ai.api.main:app", "--host", "0.0.0.0", "--port", "8000", "--no-access-log"]
