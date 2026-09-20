@@ -1,20 +1,26 @@
 """Data-layer schemas.
 
-v1 scope: a single return series (one asset, one base currency) — no
-Portfolio/Position/covariance types yet. Those are introduced in M11
-(multi-asset portfolios) as a separate type that composes several
-AssetReturnSeries, rather than by adding portfolio-level fields here.
+`AssetReturnSeries` is the single-asset type v1 is built on. M11 adds
+`Position` and `Portfolio`, which *compose* it (one series per holding)
+rather than widening it into a matrix type — see docs/design_m11.md. A
+one-position portfolio therefore holds exactly the object a v1 call uses.
+
+Holdings are notionals (currency amounts), not weights: v1 already speaks
+in currency, weights follow by division, and computing in P&L space needs
+no normalisation at all. Short positions are out of scope for M11
+(`notional >= 0`, `sum(notionals) > 0`).
 """
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 from enum import StrEnum
 
 import numpy as np
 import pandas as pd
 
-from quant_risk_ai.core.exceptions import DataValidationError
+from quant_risk_ai.core.exceptions import DataValidationError, InvalidParameterError
 
 
 class ReturnMethod(StrEnum):
@@ -58,4 +64,121 @@ class AssetReturnSeries:
             raise DataValidationError(
                 f"Return series for asset {self.asset_id!r} contains non-finite "
                 f"(NaN or infinite) values"
+            )
+
+
+@dataclass(frozen=True, eq=False)
+class Position:
+    """One holding: an asset's return series and the notional invested in it.
+
+    `notional` is a currency amount, in the series' own currency, and is the
+    same quantity v1 calls `position_value` — a single-position portfolio is
+    the v1 case spelled out. Short positions (negative notionals) are out of
+    scope for M11; zero is allowed, as it already is for `position_value`.
+    """
+
+    series: AssetReturnSeries
+    notional: float
+
+    @property
+    def asset_id(self) -> str:
+        return self.series.asset_id
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.notional):
+            raise InvalidParameterError(
+                f"notional for asset {self.asset_id!r} must be finite, got {self.notional}"
+            )
+        if self.notional < 0:
+            raise InvalidParameterError(
+                f"notional for asset {self.asset_id!r} must be non-negative, got "
+                f"{self.notional}: short positions are out of scope for M11 "
+                f"(see docs/design_m11.md)"
+            )
+
+
+@dataclass(frozen=True, eq=False)
+class Portfolio:
+    """A static snapshot of holdings: which assets, and how much of each.
+
+    Static is the operative word — these are the holdings as of one date,
+    with no rebalancing. Historical simulation therefore applies *today's*
+    holdings to past returns, which is the standard convention but is an
+    assumption (see docs/math_reference.md).
+
+    Position order is the caller's and is preserved everywhere — it fixes
+    the column order of the aligned return matrix and of `notionals`, so two
+    identical inputs always produce identical arrays, and therefore an
+    identical covariance matrix and identical Monte Carlo draws.
+
+    All positions must share one currency and one return method: summing
+    P&L across currencies would be meaningless, and mixing log with simple
+    returns would sum quantities that are not the same thing.
+    """
+
+    positions: tuple[Position, ...]
+
+    @property
+    def asset_ids(self) -> tuple[str, ...]:
+        return tuple(position.asset_id for position in self.positions)
+
+    @property
+    def notionals(self) -> np.ndarray:
+        """Notionals in position order, as a float64 array."""
+        return np.array([position.notional for position in self.positions], dtype=float)
+
+    @property
+    def total_value(self) -> float:
+        return float(self.notionals.sum())
+
+    @property
+    def weights(self) -> np.ndarray:
+        """Notionals normalised to sum to 1, in position order.
+
+        Derived, never an input: nothing in the engine needs weights (P&L
+        space uses notionals directly), but they are what a report — and the
+        explanation layer — actually reads. Safe to divide because
+        `total_value > 0` is an invariant checked below.
+        """
+        return self.notionals / self.total_value
+
+    @property
+    def currency(self) -> str:
+        return self.positions[0].series.currency
+
+    @property
+    def method(self) -> ReturnMethod:
+        return self.positions[0].series.method
+
+    def __post_init__(self) -> None:
+        if not self.positions:
+            raise InvalidParameterError("portfolio must contain at least one position")
+
+        asset_ids = self.asset_ids
+        duplicates = sorted({name for name in asset_ids if asset_ids.count(name) > 1})
+        if duplicates:
+            # An exactly duplicated asset makes the sample covariance matrix
+            # singular, so this is caught as the input error it is rather
+            # than as a Cholesky failure several layers later (M11.2).
+            raise InvalidParameterError(
+                f"portfolio contains duplicate asset_ids: {duplicates}; combine them "
+                f"into a single position instead"
+            )
+
+        currencies = sorted({position.series.currency for position in self.positions})
+        if len(currencies) > 1:
+            raise DataValidationError(
+                f"portfolio positions must share one currency, got {currencies}: "
+                f"multi-currency portfolios are out of scope"
+            )
+
+        methods = sorted({position.series.method.value for position in self.positions})
+        if len(methods) > 1:
+            raise DataValidationError(
+                f"portfolio positions must share one return method, got {methods}"
+            )
+
+        if self.total_value <= 0:
+            raise InvalidParameterError(
+                f"portfolio total value must be positive, got {self.total_value}"
             )
