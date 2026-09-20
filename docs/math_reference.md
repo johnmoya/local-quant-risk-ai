@@ -189,6 +189,67 @@ The `max(0, ...)` floor is monotonic, so it preserves this inequality:
 `tests/unit/risk/_invariants.py::assert_es_at_least_var`, exercised over
 several synthetic datasets in `tests/unit/risk/test_var_es_invariants.py`.
 
+### Tail sample size — when to trust an ES figure
+
+The minimum-sample-size check above validates the **quantile**: that the
+`1 - alpha` cutoff is backed by at least one real observation. ES then
+*averages* everything at or below that cutoff, and that average can rest on
+very few points even when the quantile floor passes comfortably. The
+expected count is
+
+```
+expected_tail_observations = n * (1 - alpha)
+```
+
+which the canonical setup makes concrete: 250 observations at `alpha=0.99`
+gives **2.5** — the reported ES is the mean of about two or three days.
+Every empirical ES result therefore carries
+`expected_tail_observations` in `metadata`, plus a `sparse_tail` flag when
+it falls below 10 (a rule of thumb, not a derived bound, in the same
+spirit as the minimum-sample-size note above). The closed-form parametric
+method carries neither, because it integrates the fitted normal's tail and
+never counts observations; its weakness is the normality assumption
+instead. For Monte Carlo the count is taken against `n_simulations`, since
+that is the sample the tail is drawn from.
+
+### Subadditivity: true for the measure, not for this estimator
+
+Expected Shortfall is famously **subadditive** as a risk measure — that is
+the property VaR lacks and the main theoretical argument for preferring ES.
+It is stated for the measure, and **the empirical estimator used here does
+not inherit it**.
+
+The mechanism is the interpolated cutoff. When `n * (1 - alpha)` is not an
+integer, the cutoff falls between two order statistics, and the number of
+observations satisfying `<= cutoff` then depends on where exactly it lands
+— which differs from series to series. The portfolio and its constituents
+end up averaging over tails of **different sizes**, and the inequality can
+invert.
+
+**Measured counterexample** (pinned by
+`tests/unit/risk/test_portfolio_historical.py::test_es_subadditivity_is_not_guaranteed_in_small_samples`):
+21 observations, `alpha=0.90`, so `n * (1 - alpha) = 2.1`. A two-asset
+portfolio weighted 60/40 reports ES **57.6% above** the notional-weighted
+sum of its assets' ES. The tail counts explain it: the first asset keeps 4
+observations — its one crash averaged with three mild days, understating
+its ES — while the portfolio keeps 2. This is not floating-point noise.
+
+A randomised sweep puts the boundary in practice: at
+`n * (1 - alpha) >= 2.5` no violation appeared in 4000 trials per
+configuration, while `n=21, alpha=0.90` violated in 138 of 4000 and
+`n=20, alpha=0.95` violated only by ~1e-16 (genuine rounding). So:
+
+- **Trust the inequality** when the tail is well populated — the regime
+  `sparse_tail` is false in. Diversification then shows up as expected, and
+  `tests/unit/risk/test_portfolio_historical.py::test_diversification_shows_up_when_the_tail_is_well_populated`
+  asserts it at `n=300, alpha=0.95`.
+- **Do not rely on it** when `sparse_tail` is set, and do not assert it as
+  an invariant in tests, which is why no such generic invariant exists
+  alongside `assert_es_at_least_var`.
+
+`ES >= VaR` is unaffected: it is a statement about one series against
+itself, where both sides read the same tail.
+
 ## Parametric (Variance-Covariance) VaR
 
 ```

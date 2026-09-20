@@ -44,6 +44,32 @@ def test_result_metadata_and_shape():
     assert result.metadata["tail_size"] >= 1
 
 
+def test_parametric_es_reports_no_tail_sample_diagnostic():
+    # The closed-form method integrates the fitted normal's tail; it never
+    # counts observations, so a sparse-tail diagnostic would be
+    # meaningless. Its weakness is the normality assumption instead.
+    asset_returns = make_asset_returns([0.01, -0.02, 0.03, -0.04, 0.015])
+
+    result = parametric_expected_shortfall(asset_returns, alpha=0.95, position_value=1_000.0)
+
+    assert "expected_tail_observations" not in result.metadata
+    assert "sparse_tail" not in result.metadata
+
+
+def test_monte_carlo_tail_diagnostic_counts_simulations_not_observations():
+    # This tail is drawn from the simulated distribution, so the simulation
+    # count is what governs how thin it is, not the real sample size.
+    asset_returns = make_asset_returns([0.01, -0.02, 0.03, -0.04])
+
+    result = monte_carlo_expected_shortfall(
+        asset_returns, alpha=0.99, position_value=1_000.0, seed=42, n_simulations=20_000
+    )
+
+    assert result.metadata["expected_tail_observations"] == 200.0
+    assert result.metadata["sparse_tail"] is False
+    assert result.n_observations == 4
+
+
 @pytest.mark.parametrize("bad_alpha", [0.0, 1.0, -0.1, 1.1])
 def test_alpha_out_of_range_rejected(bad_alpha):
     asset_returns = make_asset_returns([0.01, -0.02, 0.03, -0.04])

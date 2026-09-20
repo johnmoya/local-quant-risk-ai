@@ -84,6 +84,45 @@ def validate_sample_size(n_observations: int, alpha: float) -> None:
         )
 
 
+SPARSE_TAIL_OBSERVATIONS = 10
+
+
+def tail_sample_diagnostics(n_observations: int, alpha: float) -> dict:
+    """How many observations the ES tail average is expected to rest on.
+
+    `min_required_observations` above validates the *quantile* — that the
+    (1 - alpha) cutoff is backed by at least one real observation. Expected
+    Shortfall then averages everything at or below that cutoff, and that
+    average can be thin even when the quantile floor passes comfortably:
+    at alpha=0.90 the floor is 10 observations, while `n * (1 - alpha)` is
+    only 1.
+
+    Two things go wrong in that regime, so it is reported rather than left
+    invisible:
+
+    - The tail mean is an average over a handful of points, so it is noisy.
+    - When `n * (1 - alpha)` is not an integer, the cutoff is interpolated
+      between order statistics and the number of observations satisfying
+      `<= cutoff` differs from series to series. That is what breaks
+      subadditivity for the empirical estimator — see the ES section of
+      docs/math_reference.md for the measured counterexample.
+
+    `SPARSE_TAIL_OBSERVATIONS = 10` is a rule of thumb in the same spirit
+    as "production use typically wants substantially more" elsewhere in
+    this module, not a derived bound: the measured failures sat at 1 to 2
+    expected observations, and 10 is a conservative distance from them.
+
+    Purely diagnostic: nothing here feeds a computation, so no reported
+    figure changes. The value is rounded only so `metadata` carries
+    `2.5` rather than `2.4999999999999996`.
+    """
+    expected = n_observations * (1.0 - alpha)
+    return {
+        "expected_tail_observations": round(expected, 6),
+        "sparse_tail": expected < SPARSE_TAIL_OBSERVATIONS,
+    }
+
+
 def signed_loss_magnitude(distribution_value: float, position_value: float) -> float:
     """Convert a return-space value (an empirical quantile cutoff or tail
     mean, or their parametric/Monte Carlo equivalents) into a non-negative

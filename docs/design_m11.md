@@ -54,6 +54,41 @@ but because they interact with `validate_position_value` (which rejects
 negatives today) and with the sign convention. Mixing that with the
 introduction of covariance would blur two independent changes.
 
+### Amendment (M11.1): the historical method computes in return space
+
+The plan above argues for P&L space, and one of its arguments was that the
+formulation survives short positions while weights degenerate when
+`sum(notionals)` approaches zero. Implementing M11.1 turned up a
+conflicting requirement that wins for the historical method, so the engine
+is deliberately **not uniform**, and the reason has to be recorded or a
+future "let us unify this" refactor will quietly undo it:
+
+- **Historical VaR/ES computes in return space**: `r_p = R @ w`, then
+  multiply by the portfolio value. Reason: the empirical quantile is
+  scale-equivariant mathematically but *not* in floating point. Measured
+  over 4000 random series, `quantile(c * r)` differed from
+  `c * quantile(r)` in 31% of cases, because linear interpolation between
+  order statistics rounds differently once every value has been
+  pre-scaled. Return space keeps the one-position case bit-identical to
+  the published v1 figures (0 failures in 3000 trials spanning notionals
+  from 1 to 1e9, four alphas and four horizons); P&L space would have
+  failed roughly 31% of them by an ulp. An ulp is harmless numerically but
+  fatal to the *exact* cross-endpoint equality guarantee, which is the
+  thing keeping a v1 regression detectable.
+- **Parametric VaR/ES (M11.3) will use `nᵀ Σ n` in P&L space**, where no
+  empirical quantile is involved and the concern does not arise.
+
+The cost of the amendment is real and belongs on the record: **the
+historical path no longer inherits the short-position argument.** Weights
+are `notional_i / sum(notionals)`, so a future market-neutral book, where
+that denominator approaches zero, breaks the return-space formulation
+exactly as predicted. Admitting shorts will therefore require revisiting
+the historical method specifically — either reinstating P&L space there
+and accepting an ulp-level break with v1 (which would have to be an
+explicit, documented decision), or normalising by gross exposure
+`sum(|notional_i|)` instead, which stays well-defined for a neutral book.
+That choice is deferred with the rest of short support, not assumed away.
+
 **Static snapshot.** Historical simulation applies *today's* holdings to
 past returns. That is the industry convention, but it is an assumption and
 `docs/math_reference.md` must say so plainly.
