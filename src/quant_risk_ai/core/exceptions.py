@@ -48,6 +48,20 @@ class InsufficientSampleSizeError(InsufficientDataError):
     """
 
 
+class SingularCovarianceError(QuantRiskAIError):
+    """A portfolio's covariance matrix cannot be factorised: it is singular
+    or too ill-conditioned for a Cholesky decomposition.
+
+    Distinct from InsufficientSampleSizeError, which is about *how much*
+    data backs an estimate: a covariance matrix can be singular with any
+    amount of data, because two perfectly collinear assets or one with zero
+    variance do it on their own. Raised where the failure actually occurs —
+    the factorisation — and carries the condition number, so a caller can
+    tell rank deficiency by construction from mere ill-conditioning. See
+    risk/covariance.py.
+    """
+
+
 class LLMError(QuantRiskAIError):
     """Base class for LLM-layer (quant_risk_ai.llm) failures. Split into
     subclasses below rather than used directly, so api/main.py can map each
