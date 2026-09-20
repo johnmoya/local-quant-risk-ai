@@ -13,6 +13,7 @@ against `v1.0.2`, which is the frozen single-asset baseline
 | Holdings | Notionals (currency per asset); weights derived, reported, never required as input |
 | Short positions | **Out of scope for M11**: `notional >= 0` for every position and `sum(notionals) > 0` |
 | Time dimension | Static snapshot as of `as_of`; no rebalancing, no time-varying holdings |
+| Position order | Canonical: sorted by `asset_id` at construction, everywhere including `metadata`. Input order is **not** preserved |
 | Alignment | Common window required, then intersection of dates within it |
 | Covariance | Sample covariance (`ddof=1`), behind a pluggable estimator seam; shrinkage decision deferred to M12 |
 | API surface | Sibling endpoints under `/portfolio/*`; the v1 endpoints stay byte-identical |
@@ -56,6 +57,18 @@ introduction of covariance would blur two independent changes.
 **Static snapshot.** Historical simulation applies *today's* holdings to
 past returns. That is the industry convention, but it is an assumption and
 `docs/math_reference.md` must say so plainly.
+
+**Canonical ordering.** `Portfolio` sorts its positions by `asset_id` at
+construction, and that is the only ordering in the system: aligned matrix
+columns, `notionals`, `weights`, `RiskResult.asset_ids` and everything
+reported in `metadata`. The caller's input order is not preserved, which is
+a deliberate trade: it buys the structural guarantee that the same holdings
+submitted in any order are the same portfolio, and therefore produce the
+same covariance matrix and the same Monte Carlo draws. The alternative —
+a canonical order internally plus the input order for display — would
+require keeping two orderings in sync by hand, which is the kind of
+invariant that decays silently. Sorting is a total order because duplicate
+`asset_id`s are rejected.
 
 ## 2. Alignment
 

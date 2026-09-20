@@ -49,7 +49,7 @@ def test_identical_calendars_align_without_dropping_anything():
     assert aligned.n_assets == 2
 
 
-def test_column_order_follows_position_order_with_the_right_values():
+def test_column_order_is_canonical_not_input_order():
     portfolio = Portfolio(
         positions=(
             _position("MSFT", ["2026-01-02", "2026-01-05"], [0.02, -0.01]),
@@ -59,10 +59,11 @@ def test_column_order_follows_position_order_with_the_right_values():
 
     aligned = align_returns(portfolio)
 
-    assert aligned.asset_ids == ("MSFT", "AAPL")
-    assert list(aligned.returns.columns) == ["MSFT", "AAPL"]
+    assert aligned.asset_ids == ("AAPL", "MSFT")
+    assert list(aligned.returns.columns) == ["AAPL", "MSFT"]
     assert list(aligned.returns["AAPL"]) == [0.01, -0.02]
-    assert list(aligned.returns.iloc[0]) == [0.02, 0.01]
+    # Each column keeps its own values through the reordering.
+    assert list(aligned.returns.iloc[0]) == [0.01, 0.02]
 
 
 def test_hole_inside_the_window_drops_that_date_and_records_which_one():

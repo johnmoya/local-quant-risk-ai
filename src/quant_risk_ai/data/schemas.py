@@ -106,10 +106,19 @@ class Portfolio:
     holdings to past returns, which is the standard convention but is an
     assumption (see docs/math_reference.md).
 
-    Position order is the caller's and is preserved everywhere — it fixes
-    the column order of the aligned return matrix and of `notionals`, so two
-    identical inputs always produce identical arrays, and therefore an
-    identical covariance matrix and identical Monte Carlo draws.
+    **Positions are sorted by `asset_id` at construction, and that canonical
+    order is the only order in the system** — aligned matrix columns,
+    `notionals`, `weights`, `RiskResult.asset_ids` and everything reported in
+    `metadata`. The caller's input order is deliberately *not* preserved.
+
+    The point is a structural guarantee rather than a convention: the same
+    holdings submitted in any order produce the same arrays, hence the same
+    covariance matrix and the same Monte Carlo draws, so the same portfolio
+    can never yield two different figures. Keeping a separate "display"
+    order alongside a canonical one would mean holding two orderings in sync
+    by hand, which is exactly the kind of invariant that decays silently.
+    Sorting is total and deterministic because duplicate `asset_id`s are
+    rejected below.
 
     All positions must share one currency and one return method: summing
     P&L across currencies would be meaningless, and mixing log with simple
@@ -153,6 +162,12 @@ class Portfolio:
     def __post_init__(self) -> None:
         if not self.positions:
             raise InvalidParameterError("portfolio must contain at least one position")
+
+        # Canonical order (see the class docstring). object.__setattr__ is how
+        # a frozen dataclass normalises a field in __post_init__.
+        object.__setattr__(
+            self, "positions", tuple(sorted(self.positions, key=lambda p: p.asset_id))
+        )
 
         asset_ids = self.asset_ids
         duplicates = sorted({name for name in asset_ids if asset_ids.count(name) > 1})

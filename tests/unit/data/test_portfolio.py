@@ -39,11 +39,24 @@ def test_non_finite_notional_is_rejected(bad_notional):
         _position("AAPL", bad_notional)
 
 
-def test_portfolio_preserves_position_order():
+def test_positions_are_sorted_by_asset_id_not_kept_in_input_order():
     portfolio = Portfolio(positions=(_position("MSFT", 400_000.0), _position("AAPL", 600_000.0)))
 
-    assert portfolio.asset_ids == ("MSFT", "AAPL")
-    assert list(portfolio.notionals) == [400_000.0, 600_000.0]
+    assert portfolio.asset_ids == ("AAPL", "MSFT")
+    # Notionals follow their own position through the sort.
+    assert list(portfolio.notionals) == [600_000.0, 400_000.0]
+
+
+def test_input_order_does_not_affect_anything_observable():
+    # The structural guarantee canonical ordering buys: the same holdings,
+    # submitted in any order, are the same portfolio.
+    one = Portfolio(positions=(_position("MSFT", 400_000.0), _position("AAPL", 600_000.0)))
+    other = Portfolio(positions=(_position("AAPL", 600_000.0), _position("MSFT", 400_000.0)))
+
+    assert one.asset_ids == other.asset_ids
+    assert list(one.notionals) == list(other.notionals)
+    assert list(one.weights) == list(other.weights)
+    assert one.total_value == other.total_value
 
 
 def test_total_value_and_weights():
