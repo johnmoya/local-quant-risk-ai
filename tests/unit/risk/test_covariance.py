@@ -22,10 +22,12 @@ from quant_risk_ai.data.alignment import align_returns
 from quant_risk_ai.data.schemas import AssetReturnSeries, Portfolio, Position, ReturnMethod
 from quant_risk_ai.risk.covariance import (
     ILL_CONDITIONED_THRESHOLD,
+    NEGATIVE_VARIANCE_TOLERANCE,
     CovarianceEstimate,
     cholesky_factor,
     covariance_metadata,
     estimate_covariance,
+    portfolio_variance,
     sample_covariance,
     validate_covariance_sample_size,
 )
@@ -196,6 +198,90 @@ def test_metadata_reports_the_estimator_and_the_ratio():
     assert metadata["covariance_estimator"] == "sample_covariance"
     assert metadata["observations_per_asset"] == 150.0
     assert metadata["sparse_covariance_sample"] is False
+
+
+# ------------------------------------------------------ portfolio variance
+
+
+def _estimate(matrix: np.ndarray) -> CovarianceEstimate:
+    return CovarianceEstimate(
+        matrix=matrix,
+        asset_ids=tuple(f"A{i}" for i in range(len(matrix))),
+        n_observations=300,
+        estimator="handmade",
+        condition_number=1.0,
+    )
+
+
+def test_portfolio_variance_matches_the_quadratic_form():
+    matrix = np.array([[4e-4, 1e-4], [1e-4, 9e-4]])
+    weights = np.array([0.6, 0.4])
+
+    assert portfolio_variance(_estimate(matrix), weights) == pytest.approx(
+        float(weights @ matrix @ weights)
+    )
+
+
+def test_a_flat_matrix_gives_exactly_zero():
+    assert portfolio_variance(_estimate(np.zeros((2, 2))), np.array([0.5, 0.5])) == 0.0
+
+
+def _cancelling_matrix(scale: float, shortfall: float) -> np.ndarray:
+    """A matrix whose quadratic form under w = [1, 1] cancels to
+    `-shortfall` while its terms are of magnitude `scale`.
+
+    This is how a negative variance actually arises: not from a negative
+    entry, but from near-perfect cancellation between large opposing
+    terms — a hedged pair, in portfolio language.
+    """
+    return np.array([[scale, -scale], [-scale, scale - shortfall]])
+
+
+EQUAL_WEIGHTS = np.array([1.0, 1.0])
+
+
+def test_rounding_noise_below_tolerance_is_floored_to_zero():
+    # Terms of order 1e-3 cancelling to -1e-15: float noise on a zero
+    # variance, which is what the floor exists for.
+    matrix = _cancelling_matrix(scale=1e-3, shortfall=1e-15)
+
+    assert float(EQUAL_WEIGHTS @ matrix @ EQUAL_WEIGHTS) < 0.0  # genuinely negative
+    assert portfolio_variance(_estimate(matrix), EQUAL_WEIGHTS) == 0.0
+
+
+def test_a_structurally_negative_variance_raises_instead_of_reporting_zero():
+    # Same matrix scale, but cancelling to -1e-3: that is not rounding, it
+    # means the matrix is not a covariance matrix. Flooring it would report
+    # a confident VaR of zero for a portfolio whose risk was never computed.
+    matrix = _cancelling_matrix(scale=1e-3, shortfall=1e-3)
+
+    with pytest.raises(DataValidationError, match="negative by more than"):
+        portfolio_variance(_estimate(matrix), EQUAL_WEIGHTS)
+
+
+def test_the_same_absolute_negative_is_noise_or_failure_depending_on_scale():
+    # This is why the tolerance is relative. -1e-9 against terms of order 1
+    # is rounding; against terms of order 1e-6 it is structural.
+    shortfall = 1e-9
+
+    big = _cancelling_matrix(scale=1.0, shortfall=shortfall)
+    assert portfolio_variance(_estimate(big), EQUAL_WEIGHTS) == 0.0
+
+    small = _cancelling_matrix(scale=1e-6, shortfall=shortfall)
+    with pytest.raises(DataValidationError, match="negative by more than"):
+        portfolio_variance(_estimate(small), EQUAL_WEIGHTS)
+
+
+def test_the_tolerance_constant_is_the_boundary():
+    # Just inside and just outside the documented tolerance.
+    scale = 1e-3
+    magnitude = 4.0 * scale  # |w| |Sigma| |w| for this construction
+    inside = 0.5 * NEGATIVE_VARIANCE_TOLERANCE * magnitude
+    outside = 100.0 * NEGATIVE_VARIANCE_TOLERANCE * magnitude
+
+    assert portfolio_variance(_estimate(_cancelling_matrix(scale, inside)), EQUAL_WEIGHTS) == 0.0
+    with pytest.raises(DataValidationError):
+        portfolio_variance(_estimate(_cancelling_matrix(scale, outside)), EQUAL_WEIGHTS)
 
 
 # --------------------------------------------------------------- Cholesky

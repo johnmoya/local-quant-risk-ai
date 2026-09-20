@@ -75,11 +75,67 @@ future "let us unify this" refactor will quietly undo it:
   failed roughly 31% of them by an ulp. An ulp is harmless numerically but
   fatal to the *exact* cross-endpoint equality guarantee, which is the
   thing keeping a v1 regression detectable.
-- **Parametric VaR/ES (M11.3) will use `nᵀ Σ n` in P&L space**, where no
-  empirical quantile is involved and the concern does not arise.
+- **Parametric VaR/ES (M11.3) uses `sqrt(wᵀ Σ w)` with an explicit
+  covariance matrix**, multiplying by the portfolio value afterwards.
+  (`nᵀ Σ n` in P&L space is the same quantity, since `nᵀ Σ n = V² wᵀ Σ w`;
+  the weighted form is used because it mirrors the historical path's
+  structure and lands marginally closer to v1's arithmetic.)
 
-The cost of the amendment is real and belongs on the record: **the
-historical path no longer inherits the short-position argument.** Weights
+### Amendment (M11.3): the parametric method matches v1 to within 5 ulps
+
+The parametric path cannot reproduce v1's figures bit for bit at k=1, and
+no reformulation fixes it: `sqrt(np.cov(x, ddof=1))` differs from
+`pandas.Series.std(ddof=1)` in 36% of random cases, and pandas is not
+self-consistent either — `DataFrame.cov()[0, 0]` differs from
+`Series.var(ddof=1)` in 63%. Matrix routines and scalar accumulation are
+simply different arithmetic.
+
+Rather than settle for "approximately equal", the gap was measured the
+same way the quantile gap was. Over 30,000 random cases spanning notionals
+from 1e-3 to 1e12, alphas from 0.50 to 0.999, horizons from 1 to 250 and
+return scales across eight orders of magnitude, the reported value differs
+from v1's by **at most 5 ulps**: 72% of cases identical, worst relative
+difference 6.7e-16 (about three machine epsilons). `mu` matched exactly in
+every single case, so the entire difference comes from `sigma`. That bound
+is what the tests assert, and a seeded miniature sweep re-checks it on
+every run so the claim cannot quietly rot.
+
+**The bound is environment-dependent, and deliberately stated as such.** An
+ulp count reflects summation order, which the BLAS implementation, the
+numpy version and the CPU architecture all get a say in. The measurement
+was taken on x86-64 with the numpy `uv.lock` pins, which is what CI runs,
+so it holds there. On ARM, against a different BLAS, or after a numpy
+upgrade, a case may exceed 5 ulps with nothing actually wrong — that is
+expected sensitivity to the arithmetic environment, not a regression. The
+correct response is to re-measure on that environment and update the
+constant to the figure measured there, never to widen it until the suite
+goes quiet.
+
+**Two alternatives were considered and rejected.**
+
+*Special-casing k=1* to fall back to v1's scalar formula would restore
+exact equality on paper while destroying what the regression tests are
+for: with a branch in place, the one-position test would exercise the
+branch rather than the multi-asset path, so the guarantee would look
+preserved while actually being hollowed out. The whole point of the k=1
+regression is that it runs the *same* code a 10-asset portfolio runs.
+
+*Computing `mu_p` and `sigma_p` directly from the aggregate return series*
+(`aggregate.std(ddof=1)`) would give exact v1 equality for free, and is
+deliberately not done. It would skip the covariance matrix entirely — and
+the matrix is not an implementation detail of the parametric method, it is
+its substance: the object that makes the dependence structure between
+assets explicit rather than implicit, the thing that distinguishes this
+method from "historical with a normal assumption", and precisely what M12
+decomposes into factor and idiosyncratic risk. Trading it away to win five
+ulps against a figure that is itself an estimate would be optimising the
+wrong thing. The direct route survives instead as a *cross-check*: the two
+routes must agree to within a tight relative tolerance, which is an
+independent invariant of the same kind as `ES >= VaR`, and is tested as
+one.
+
+The cost of the return-space amendment is real and belongs on the record:
+**the historical path no longer inherits the short-position argument.** Weights
 are `notional_i / sum(notionals)`, so a future market-neutral book, where
 that denominator approaches zero, breaks the return-space formulation
 exactly as predicted. Admitting shorts will therefore require revisiting
@@ -216,7 +272,7 @@ v1 exactly.
 |---|---|
 | Historical VaR | Quantile of `L`: `VaR = max(0, -Q_{1-alpha}(L))`. The quantile is exactly scale-equivariant (verified numerically: `quantile(V·r) == V·quantile(r)` bit for bit), so `k = 1` reproduces v1's floats |
 | Historical ES | Tail mean of `L` below its own cutoff. The tail is defined on portfolio P&L, not per asset: portfolio ES is not the sum of per-asset ES |
-| Parametric | The real change: `mu_p = nᵀ mu`, `sigma_p = sqrt(nᵀ Σ n)`. This is where covariance enters. Closed-form ES is the same formula scaled by `sigma_p` |
+| Parametric | The real change: `mu_p = wᵀ mu`, `sigma_p = sqrt(wᵀ Σ w)`, times the portfolio value. This is where covariance enters. Closed-form ES is the same formula scaled by `sigma_p`. Matches v1 at k=1 to within 5 ulps rather than exactly — see the amendment below |
 | Monte Carlo | `Z ~ N(0, I_k)`, `R_sim = mu + Z · Lᵀ` where `Σ = L Lᵀ`. The M4 design note anticipated exactly this. Verified: at `k = 1` this path is **bit-identical** to v1's `mu + sigma * Z`, so published Monte Carlo figures do not move — pinned by a seeded regression test |
 | Backtesting | **No change.** The four tests operate on the boolean violation series; only the upstream production of the realised series differs, which is M11's job, not `risk/backtesting.py`'s. At most a thin adapter if P&L is passed instead of returns plus a value |
 

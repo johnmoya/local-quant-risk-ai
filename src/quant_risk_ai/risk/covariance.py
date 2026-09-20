@@ -190,6 +190,56 @@ def covariance_metadata(estimate: CovarianceEstimate) -> dict:
     }
 
 
+# A quadratic form accumulates rounding across k^2 products, so its error
+# floor scales with the magnitude of the terms being summed rather than with
+# an absolute constant. 1e-9 relative sits far above that accumulation even
+# for a matrix with thousands of assets, and far below any difference that
+# could be mistaken for a real variance.
+NEGATIVE_VARIANCE_TOLERANCE = 1e-9
+
+
+def portfolio_variance(estimate: CovarianceEstimate, weights: np.ndarray) -> float:
+    """`w' Sigma w`, the portfolio's return variance, guarded at zero.
+
+    A covariance matrix is positive semi-definite by construction, so this
+    quantity is mathematically non-negative and a negative result can only
+    come from rounding around zero — but only if it is *small*. The two
+    cases mean opposite things and must be told apart:
+
+    - A tiny negative, within tolerance of the scale of the terms being
+      summed, is float noise on a genuinely zero or near-zero variance. It
+      is floored to zero. That is a floor at zero, not a jitter added to
+      the diagonal, so it cannot move a non-degenerate figure.
+    - A large negative means the matrix is not a covariance matrix at all:
+      a faulty custom estimator, or corruption upstream. Flooring *that* to
+      zero would report a confident VaR of zero for a portfolio whose risk
+      was never actually computed — exactly the silent degradation this
+      project keeps refusing. It raises instead.
+
+    The tolerance is relative to `|w|' |Sigma| |w|`, the magnitude of the
+    sum, because that is what the accumulated rounding error scales with.
+
+    Raises:
+        DataValidationError: the quadratic form is negative by more than
+            rounding can explain.
+    """
+    variance = float(weights @ estimate.matrix @ weights)
+    if variance >= 0.0:
+        return variance
+
+    magnitude = float(np.abs(weights) @ np.abs(estimate.matrix) @ np.abs(weights))
+    tolerance = NEGATIVE_VARIANCE_TOLERANCE * magnitude
+    if variance < -tolerance:
+        raise DataValidationError(
+            f"portfolio variance w'Sigma w is {variance:.6e}, negative by more than "
+            f"rounding can explain (tolerance {tolerance:.6e}, matrix magnitude "
+            f"{magnitude:.6e}). A sample covariance matrix is positive "
+            f"semi-definite, so this points to a corrupt matrix or a faulty "
+            f"covariance estimator, not to a degenerate portfolio."
+        )
+    return 0.0
+
+
 def cholesky_factor(estimate: CovarianceEstimate) -> np.ndarray:
     """Lower-triangular `L` with `L @ L.T == matrix`, for correlated draws.
 

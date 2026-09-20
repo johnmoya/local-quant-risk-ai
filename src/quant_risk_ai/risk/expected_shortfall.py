@@ -16,6 +16,11 @@ import numpy as np
 from scipy.stats import norm
 
 from quant_risk_ai.data.schemas import AssetReturnSeries, Portfolio
+from quant_risk_ai.risk.covariance import (
+    CovarianceEstimator,
+    covariance_metadata,
+    sample_covariance,
+)
 from quant_risk_ai.risk.portfolio import alignment_metadata, portfolio_returns
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from quant_risk_ai.risk.stats_utils import (
@@ -30,6 +35,7 @@ from quant_risk_ai.risk.stats_utils import (
     validate_sample_size,
     validate_simulation_count,
 )
+from quant_risk_ai.risk.var_parametric import portfolio_moments
 
 
 def historical_expected_shortfall(
@@ -219,6 +225,71 @@ def parametric_expected_shortfall(
         asset_ids=[asset_returns.asset_id],
         currency=asset_returns.currency,
         metadata={"return_method": asset_returns.method.value, "mu": mu, "sigma": sigma},
+    )
+
+
+def portfolio_parametric_expected_shortfall(
+    portfolio: Portfolio,
+    *,
+    alpha: float,
+    horizon_days: int = 1,
+    as_of: date_type | None = None,
+    start: date_type | None = None,
+    end: date_type | None = None,
+    covariance_estimator: CovarianceEstimator = sample_covariance,
+) -> RiskResult:
+    """Closed-form Expected Shortfall for a multi-asset portfolio.
+
+    The same normal tail-mean formula as `parametric_expected_shortfall`,
+    with the portfolio's moments taken from the covariance matrix:
+
+    ES_alpha = max(0, -mu_p + sigma_p * phi(z) / (1 - alpha)) * total_value
+
+    Like the parametric VaR above, this matches v1 at k=1 to within a few
+    ulps rather than exactly; see `var_parametric.portfolio_parametric_var`
+    for the measurement. It carries no `expected_tail_observations`, for
+    the same reason the single-asset closed form does not: it integrates
+    the fitted normal's tail instead of counting observations.
+
+    Raises:
+        InvalidParameterError: alpha is not in the open interval (0, 1), or
+            horizon_days is not a positive integer.
+        DataValidationError: the positions disagree on currency or return
+            method, or the covariance estimator misbehaved.
+        InsufficientDataError: the assets do not cover the window or have
+            no dates in common.
+        InsufficientSampleSizeError: fewer than 2 aligned observations, or
+            fewer than n_assets + 1 of them.
+    """
+    validate_alpha(alpha)
+    aggregate = portfolio_returns(portfolio, start=start, end=end)
+    validate_position_value(aggregate.total_value)
+    validate_parametric_sample_size(aggregate.alignment.n_observations)
+
+    mu_p, sigma_p, estimate = portfolio_moments(portfolio, aggregate, covariance_estimator)
+    z = norm.ppf(1.0 - alpha)
+    tail_mean = mu_p - sigma_p * norm.pdf(z) / (1.0 - alpha)
+    loss_magnitude = scale_to_horizon(
+        signed_loss_magnitude(tail_mean, aggregate.total_value), horizon_days
+    )
+
+    metadata = alignment_metadata(aggregate, portfolio)
+    metadata.update(covariance_metadata(estimate))
+    metadata["mu"] = mu_p
+    metadata["sigma"] = sigma_p
+
+    return RiskResult(
+        method=RiskMethod.PARAMETRIC,
+        metric=RiskMetric.EXPECTED_SHORTFALL,
+        value=loss_magnitude,
+        confidence_level=alpha,
+        horizon_days=horizon_days,
+        portfolio_value=aggregate.total_value,
+        as_of=as_of if as_of is not None else aggregate.as_of,
+        n_observations=aggregate.alignment.n_observations,
+        asset_ids=list(portfolio.asset_ids),
+        currency=portfolio.currency,
+        metadata=metadata,
     )
 
 
