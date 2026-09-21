@@ -29,6 +29,16 @@ dev = [
     "mypy>=1.9",
     "pandas-stubs>=2.2",
 ]
+# Research-only, deliberately NOT runtime dependencies: nothing under
+# src/quant_risk_ai imports these, so the API and the risk engine ship
+# without them and CI keeps installing only the `dev` extra. They exist
+# for the scripts under research/ (see docs/research_design_real_data.md).
+# yfinance is needed only to *refresh* data/research/SPY_prices.csv, which
+# is committed — reproducing the study needs neither it nor a network.
+research = [
+    "yfinance>=1.7",
+    "matplotlib>=3.8",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/quant_risk_ai"]
@@ -68,4 +78,10 @@ check_untyped_defs = true
 # above), so mypy can't see into scipy.stats (norm.ppf/pdf, used starting
 # M3's parametric VaR/ES) without this.
 module = "scipy.*"
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Research-extra packages: CI installs only the `dev` extra, so these are
+# absent when research/ is type-checked there. Neither ships type stubs.
+module = ["yfinance.*", "matplotlib.*"]
 ignore_missing_imports = true
