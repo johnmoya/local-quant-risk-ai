@@ -1,5 +1,5 @@
 {
-  "generated_at_utc": "2026-09-21T23:08:07+00:00",
+  "generated_at_utc": "2026-09-21T23:22:34+00:00",
   "environment": {
     "python": "3.11.16",
     "numpy": "2.4.6",
@@ -157,6 +157,225 @@
         "red": 864,
         "pct_green": 38.54,
         "worst_zone": "red"
+      }
+    }
+  },
+  "basel_by_calendar_year": {
+    "2015": {
+      "n_days": 1,
+      "classified": false,
+      "realized_volatility_annualised": null,
+      "historical": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "parametric": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "monte_carlo": {
+        "exceptions": 0,
+        "zone": null
+      }
+    },
+    "2016": {
+      "n_days": 252,
+      "classified": true,
+      "realized_volatility_annualised": 0.1308,
+      "historical": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28167024
+      },
+      "parametric": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "monte_carlo": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      }
+    },
+    "2017": {
+      "n_days": 251,
+      "classified": true,
+      "realized_volatility_annualised": 0.0674,
+      "historical": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "parametric": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "monte_carlo": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      }
+    },
+    "2018": {
+      "n_days": 251,
+      "classified": true,
+      "realized_volatility_annualised": 0.1708,
+      "historical": {
+        "exceptions": 7,
+        "zone": "yellow",
+        "cumulative_probability": 0.9958779
+      },
+      "parametric": {
+        "exceptions": 16,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      },
+      "monte_carlo": {
+        "exceptions": 16,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      }
+    },
+    "2019": {
+      "n_days": 252,
+      "classified": true,
+      "realized_volatility_annualised": 0.1253,
+      "historical": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28167024
+      },
+      "parametric": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "monte_carlo": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      }
+    },
+    "2020": {
+      "n_days": 253,
+      "classified": true,
+      "realized_volatility_annualised": 0.3365,
+      "historical": {
+        "exceptions": 8,
+        "zone": "yellow",
+        "cumulative_probability": 0.99885238
+      },
+      "parametric": {
+        "exceptions": 14,
+        "zone": "red",
+        "cumulative_probability": 0.99999994
+      },
+      "monte_carlo": {
+        "exceptions": 14,
+        "zone": "red",
+        "cumulative_probability": 0.99999994
+      }
+    },
+    "2021": {
+      "n_days": 252,
+      "classified": true,
+      "realized_volatility_annualised": 0.1299,
+      "historical": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28167024
+      },
+      "parametric": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7538135
+      },
+      "monte_carlo": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7538135
+      }
+    },
+    "2022": {
+      "n_days": 251,
+      "classified": true,
+      "realized_volatility_annualised": 0.2426,
+      "historical": {
+        "exceptions": 10,
+        "zone": "red",
+        "cumulative_probability": 0.99994414
+      },
+      "parametric": {
+        "exceptions": 17,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      },
+      "monte_carlo": {
+        "exceptions": 17,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      }
+    },
+    "2023": {
+      "n_days": 250,
+      "classified": true,
+      "realized_volatility_annualised": 0.1307,
+      "historical": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "parametric": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "monte_carlo": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      }
+    },
+    "2024": {
+      "n_days": 252,
+      "classified": true,
+      "realized_volatility_annualised": 0.1258,
+      "historical": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "parametric": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "monte_carlo": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      }
+    },
+    "2025": {
+      "n_days": 249,
+      "classified": true,
+      "realized_volatility_annualised": 0.1935,
+      "historical": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89352021
+      },
+      "parametric": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95947638
+      },
+      "monte_carlo": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95947638
       }
     }
   },

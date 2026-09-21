@@ -11,6 +11,7 @@ exercise the real pipeline without a network, and they use a short slice
 and a small simulation count to stay fast.
 """
 
+import json
 from pathlib import Path
 
 import numpy as np
@@ -19,7 +20,10 @@ import pytest
 from research.rolling_backtest import (
     METHODS,
     BacktestConfig,
+    annual_basel_zones,
+    build_summary,
     evaluate_method,
+    rolling_exception_counts,
     run_rolling_backtest,
     seed_for,
 )
@@ -262,3 +266,57 @@ def test_evaluate_method_reports_a_consistent_exception_count(frame):
 def test_a_window_longer_than_the_data_is_rejected(short_returns):
     with pytest.raises(ValueError, match="need more than"):
         run_rolling_backtest(short_returns, BacktestConfig(window=10_000))
+
+
+# ------------------------------------------------------- summary artefact
+
+
+def _reject_constants(name: str):
+    raise AssertionError(f"summary contains the non-JSON constant {name}")
+
+
+def test_the_summary_is_strictly_valid_json(short_returns, frame, tmp_path):
+    """No NaN or Infinity may reach summary.json.
+
+    `json.dumps` emits those as bare `NaN` / `Infinity` literals, which
+    Python reads back happily and a strict parser rejects — so a malformed
+    artefact looks fine until something else consumes it. This caught a
+    real leak: a calendar year holding a single forecast day produced a
+    NaN annualised volatility (a sample std needs two observations).
+    """
+    summary = build_summary(frame, FAST, PRICES)
+    encoded = json.dumps(summary, allow_nan=False)
+
+    json.loads(encoded, parse_constant=_reject_constants)
+
+
+def test_a_year_too_short_to_classify_is_not_given_a_zone(frame):
+    """binom.cdf(0, 1, 0.01) is 0.99, so a one-day year would come back
+    yellow on its length alone. Those years report a count and no zone."""
+    zones = annual_basel_zones(frame, FAST)
+
+    for year, entry in zones.items():
+        if entry["classified"]:
+            assert entry[METHODS[0]]["zone"] in {"green", "yellow", "red"}, year
+        else:
+            assert entry[METHODS[0]]["zone"] is None, year
+
+
+def test_annual_zones_agree_with_the_recorded_exceptions(frame):
+    zones = annual_basel_zones(frame, FAST)
+    years = pd.to_datetime(frame["date"]).dt.year
+
+    for year, entry in zones.items():
+        subset = frame.loc[years == int(year)]
+        assert entry["n_days"] == len(subset)
+        for method in METHODS:
+            assert entry[method]["exceptions"] == int(subset[f"{method}_exception"].sum())
+
+
+def test_rolling_exception_counts_match_a_plain_trailing_sum(frame):
+    window = 30
+    counts = rolling_exception_counts(frame, window=window)
+
+    for method in METHODS:
+        expected = frame[f"{method}_exception"].astype(float).rolling(window).sum().to_numpy()
+        assert np.array_equal(counts[method].to_numpy(), expected, equal_nan=True)

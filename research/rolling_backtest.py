@@ -285,6 +285,89 @@ def rolling_basel_zones(violations: pd.Series, config: BacktestConfig) -> dict:
     }
 
 
+# A calendar year shorter than this is a sampling artefact at the edges of
+# the window, not a year: classifying it says more about its length than
+# about the model. Basel itself classifies on roughly a full trading year.
+MIN_DAYS_TO_CLASSIFY_A_YEAR = 100
+
+
+def annualised_volatility(returns: pd.Series) -> float | None:
+    """Annualised realised volatility, or None when it is undefined.
+
+    A sample standard deviation needs two observations; with fewer, pandas
+    returns NaN. NaN is not valid JSON — `json.dumps` emits a bare `NaN`
+    literal that a strict parser rejects — and this study writes
+    summary.json for other tools to read. Returning None serialises as
+    `null`, which is both honest and parseable. (The same trap produced
+    v1.0.2's `"value": null` response, from infinity rather than NaN.)
+    """
+    if len(returns) < 2:
+        return None
+    return round(float(returns.std(ddof=1)) * float(np.sqrt(252)), 4)
+
+
+def annual_basel_zones(frame: pd.DataFrame, config: BacktestConfig) -> dict:
+    """Basel zone per calendar year — the review a supervisor actually runs.
+
+    Basel classifies a model on roughly one trading year (~250 days), once
+    a year. Classifying 2,514 days in a single shot answers a different
+    question: over ten years even a well-calibrated model accumulates
+    enough exceptions to leave the green band, so the whole-sample zone
+    mostly measures sample length. A per-year view is what shows a model
+    moving between zones as the regime changes.
+
+    Years with materially fewer than a full year of forecasts (the first
+    and last, here) are reported with their length so a short year is not
+    mistaken for a calm one.
+    """
+    years = pd.to_datetime(frame["date"]).dt.year
+    result: dict[str, dict] = {}
+
+    for year in sorted(years.unique()):
+        subset = frame.loc[years == year]
+        classified = len(subset) >= MIN_DAYS_TO_CLASSIFY_A_YEAR
+        entry: dict = {
+            "n_days": int(len(subset)),
+            "classified": classified,
+            "realized_volatility_annualised": annualised_volatility(subset["realized_return"]),
+        }
+        index = pd.DatetimeIndex(pd.to_datetime(subset["date"]))
+        for method in METHODS:
+            violations = pd.Series(subset[f"{method}_exception"].to_numpy(), index=index)
+            exceptions = int(violations.sum())
+            if not classified:
+                # A one-day "year" at the edge of the sample would come back
+                # yellow purely because binom.cdf(0, 1, 0.01) is 0.99 — an
+                # artefact of its length, not a statement about the model.
+                entry[method] = {"exceptions": exceptions, "zone": None}
+                continue
+            zone = traffic_light_zone(violations, config.alpha)
+            entry[method] = {
+                "exceptions": exceptions,
+                "zone": zone.zone.value,
+                "cumulative_probability": round(zone.cumulative_probability, 8),
+            }
+        result[str(year)] = entry
+
+    return result
+
+
+def rolling_exception_counts(frame: pd.DataFrame, window: int = 250) -> pd.DataFrame:
+    """Trailing exception count per method — the quantity Basel classifies.
+
+    Returned rather than plotted here so the figure module and the summary
+    read the same numbers.
+    """
+    index = pd.DatetimeIndex(pd.to_datetime(frame["date"]))
+    counts = {
+        method: pd.Series(frame[f"{method}_exception"].to_numpy(dtype=float), index=index)
+        .rolling(window)
+        .sum()
+        for method in METHODS
+    }
+    return pd.DataFrame(counts)
+
+
 def stress_episodes(frame: pd.DataFrame, config: BacktestConfig) -> dict:
     """Exception behaviour inside pre-identified high-volatility periods.
 
@@ -359,6 +442,7 @@ def build_summary(frame: pd.DataFrame, config: BacktestConfig, prices_path: Path
             ),
         },
         "methods": {method: evaluate_method(frame, method, config) for method in METHODS},
+        "basel_by_calendar_year": annual_basel_zones(frame, config),
         "stress_episodes": stress_episodes(frame, config),
     }
 
@@ -387,8 +471,13 @@ def main() -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
     frame.to_csv(args.output_dir / "backtest_results.csv", index=False)
+    # allow_nan=False on purpose: json.dumps would otherwise emit bare NaN
+    # or Infinity literals, which are not valid JSON and which a strict
+    # parser rejects. Failing at write time turns a silently malformed
+    # artefact into an immediate error — the same trap that produced
+    # v1.0.2's `"value": null` response.
     (args.output_dir / "summary.json").write_text(
-        json.dumps(summary, indent=2) + "\n", encoding="utf-8"
+        json.dumps(summary, indent=2, allow_nan=False) + "\n", encoding="utf-8"
     )
 
     if not args.no_figures:
@@ -448,6 +537,24 @@ def print_report(summary: dict) -> None:
             f"(green {rolling['green']}, yellow {rolling['yellow']}, "
             f"red {rolling['red']} of {rolling['n_windows']})"
         )
+
+    print(
+        "\nBasel zone by calendar year (exceptions / zone) — "
+        "at n=250 the engine's bands are 0-4 green, 5-9 yellow, 10+ red:"
+    )
+    print(f"  {'year':<6}{'days':>5}{'vol':>7}   " + "".join(f"{m:<20}" for m in METHODS))
+    for year, entry in summary["basel_by_calendar_year"].items():
+        cells = "".join(
+            f"{entry[m]['exceptions']:>3} {(entry[m]['zone'] or 'n/a'):<16}" for m in METHODS
+        )
+        vol = entry["realized_volatility_annualised"]
+        vol_text = f"{vol * 100:>6.1f}%" if vol is not None else f"{'n/a':>7}"
+        flag = "  " if entry["classified"] else " *"
+        print(f"  {year:<6}{entry['n_days']:>5}{vol_text}{flag} {cells}")
+    print(
+        f"  * fewer than {MIN_DAYS_TO_CLASSIFY_A_YEAR} forecast days: not classified, "
+        f"since the zone would reflect the year's length"
+    )
 
     print("\nStress episodes (exceptions by method):")
     for label, episode in summary["stress_episodes"].items():

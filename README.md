@@ -203,7 +203,7 @@ python -m research.rolling_backtest           # ~13s -> results/real_data/
 
 Outputs land in `results/real_data/`: `backtest_results.csv` (one row per
 forecast day), `summary.json` (config, environment, every statistic) and
-four figures.
+five figures.
 
 ### Results
 
@@ -215,9 +215,37 @@ four figures.
 | Parametric | 72 | 2.86% | <1e-13 | 0.0010 | red | 24,190 | 27,787 |
 | Monte Carlo | 72 | 2.86% | <1e-13 | 0.0010 | red | 24,185 | 27,782 |
 
-Basel over rolling 250-day windows (the supervisory view, since the
-whole-sample zone is a generalisation the regulation does not make):
-historical is green in 53.8% of windows, the other two in 38.5%.
+**The whole-sample zone answers a question Basel does not ask.** A
+supervisor classifies a model on roughly one trading year, repeatedly; over
+ten years even a well-calibrated model accumulates enough exceptions to
+leave the green band, so a single zone over 2,514 days largely measures
+sample length. Per calendar year (the engine's own bands at `n=250` are
+0–4 green, 5–9 yellow, 10+ red, derived by classifying synthetic counts
+through `traffic_light_zone` rather than quoted from the regulation):
+
+| Year | Realised vol | Historical | Parametric | Monte Carlo |
+|---|---|---|---|---|
+| 2016 | 13.1% | 1 green | 4 green | 4 green |
+| 2017 | 6.7% | 3 green | 3 green | 3 green |
+| 2018 | 17.1% | 7 **yellow** | 16 **red** | 16 **red** |
+| 2019 | 12.5% | 1 green | 4 green | 4 green |
+| 2020 | 33.7% | 8 **yellow** | 14 **red** | 14 **red** |
+| 2021 | 13.0% | 1 green | 3 green | 3 green |
+| 2022 | 24.3% | 10 **red** | 17 **red** | 17 **red** |
+| 2023 | 13.1% | 0 green | 0 green | 0 green |
+| 2024 | 12.6% | 6 **yellow** | 6 **yellow** | 6 **yellow** |
+| 2025 | 19.4% | 4 green | 5 **yellow** | 5 **yellow** |
+
+The escalation tracks the volatility regime almost exactly: every calm year
+is green for all three methods, and every high-volatility year escalates —
+2018, 2020 and 2022 put the normal-based methods straight into red while
+historical reaches yellow, yellow and red respectively. `05_basel_zones.png`
+shows the same thing continuously, as the trailing 250-day exception count
+against the zone bands, including the sharp drop to zero in early 2021 when
+the COVID window rolls off.
+
+Aggregated over rolling 250-day windows, historical sits green in 53.8% of
+windows and the other two in 38.5%.
 
 ### What the evidence supports
 

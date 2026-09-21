@@ -177,9 +177,18 @@ misalignment is an error rather than a silently meaningless backtest.
   counts, which are only the boundaries for the canonical `n=250,
   alpha=0.99` case. **Applying it to 2,514 observations is therefore a
   generalisation, not the supervisory rule**: a regulator classifies on a
-  250-day window. Both are reported — the whole-sample zone, and the
-  sequence of zones over rolling 250-day windows, which is what a
-  supervisor would actually see.
+  250-day window, repeatedly. Over ten years even a well-calibrated model
+  accumulates enough exceptions to leave the green band, so a single
+  whole-sample zone largely measures sample length. Three views are
+  reported: the whole-sample zone, the zone per calendar year, and the
+  trailing 250-day exception count through time (`05_basel_zones.png`),
+  which is the closest to what a supervisor actually sees.
+
+  A calendar year holding fewer than 100 forecast days is reported with
+  its exception count but **not classified**: at the edges of the sample a
+  one-day "year" would come back yellow purely because
+  `binom.cdf(0, 1, 0.01)` is 0.99, which describes its length rather than
+  the model.
 
 ## Stress episodes
 

@@ -22,10 +22,14 @@ matplotlib.use("Agg")  # headless: no display in CI or WSL
 import matplotlib.pyplot as plt  # noqa: E402
 import pandas as pd  # noqa: E402
 
+# Monte Carlo is drawn dashed on purpose. It samples the same fitted normal
+# the parametric method solves in closed form, so the two lines coincide to
+# within simulation noise; drawn solid, one simply hides the other and the
+# reader sees a missing series rather than a result.
 METHOD_STYLE = {
-    "historical": ("#1b6ca8", "Historical"),
-    "parametric": ("#c1440e", "Parametric"),
-    "monte_carlo": ("#2e7d32", "Monte Carlo"),
+    "historical": ("#1b6ca8", "Historical", "-"),
+    "parametric": ("#c1440e", "Parametric", "-"),
+    "monte_carlo": ("#2e7d32", "Monte Carlo", (0, (5, 3))),
 }
 
 
@@ -56,12 +60,13 @@ def plot_returns_and_var(frame: pd.DataFrame, config, output: Path) -> Path:
         label="Daily return",
         zorder=1,
     )
-    for method, (color, label) in METHOD_STYLE.items():
+    for method, (color, label, style) in METHOD_STYLE.items():
         ax.plot(
             dates,
             -frame[f"{method}_var"] / config.position_value * 100,
             lw=1.1,
             color=color,
+            ls=style,
             label=f"{label} VaR",
             zorder=2,
         )
@@ -81,7 +86,7 @@ def plot_exceptions(frame: pd.DataFrame, config, output: Path) -> Path:
     dates = _dated(frame)
     fig, axes = plt.subplots(3, 1, figsize=(14, 10), sharex=True, sharey=True)
 
-    for ax, (method, (color, label)) in zip(axes, METHOD_STYLE.items(), strict=True):
+    for ax, (method, (color, label, _style)) in zip(axes, METHOD_STYLE.items(), strict=True):
         ax.plot(
             dates,
             frame["realized_loss"] / 1e3,
@@ -134,12 +139,13 @@ def plot_volatility_context(frame: pd.DataFrame, config, output: Path) -> Path:
     top.grid(alpha=0.2)
     top.set_title(f"{config.asset_id} volatility regime and VaR response", fontsize=12)
 
-    for method, (color, label) in METHOD_STYLE.items():
+    for method, (color, label, style) in METHOD_STYLE.items():
         bottom.plot(
             dates,
             frame[f"{method}_var"] / config.position_value * 100,
             lw=1.0,
             color=color,
+            ls=style,
             label=f"{label} VaR",
         )
     bottom.set_ylabel("VaR (% of position)")
@@ -154,8 +160,8 @@ def plot_method_comparison(frame: pd.DataFrame, config, output: Path) -> Path:
 
     var_data = [frame[f"{m}_var"] / config.position_value * 100 for m in METHOD_STYLE]
     es_data = [frame[f"{m}_es"] / config.position_value * 100 for m in METHOD_STYLE]
-    labels = [label for _, label in METHOD_STYLE.values()]
-    colors = [color for color, _ in METHOD_STYLE.values()]
+    labels = [label for _c, label, _s in METHOD_STYLE.values()]
+    colors = [color for color, _l, _s in METHOD_STYLE.values()]
 
     for ax, data, title in ((axes[0], var_data, "VaR"), (axes[1], es_data, "ES")):
         parts = ax.boxplot(data, tick_labels=labels, patch_artist=True, showfliers=False)
@@ -167,12 +173,13 @@ def plot_method_comparison(frame: pd.DataFrame, config, output: Path) -> Path:
         ax.grid(alpha=0.2, axis="y")
 
     dates = _dated(frame)
-    for method, (color, label) in METHOD_STYLE.items():
+    for method, (color, label, style) in METHOD_STYLE.items():
         axes[2].plot(
             dates,
             frame[f"{method}_es"] / frame[f"{method}_var"],
             lw=0.9,
             color=color,
+            ls=style,
             label=label,
         )
     axes[2].axhline(1.0, color="black", lw=0.8, ls="--", alpha=0.6, label="ES = VaR")
@@ -185,10 +192,53 @@ def plot_method_comparison(frame: pd.DataFrame, config, output: Path) -> Path:
     return _save(fig, output / "04_method_comparison.png")
 
 
+def plot_basel_zones(frame: pd.DataFrame, config, output: Path) -> Path:
+    """Trailing 250-day exception count against the Basel bands.
+
+    This is the supervisory view: a regulator classifies a model on about
+    one trading year, repeatedly — not once over a decade. Plotting the
+    trailing count against the zone thresholds shows *when* each model
+    would have been escalated, which a single whole-sample zone cannot.
+
+    The band edges (5 and 10) are the engine's own boundaries at n=250,
+    alpha=0.99, derived by classifying synthetic violation counts through
+    `traffic_light_zone` rather than quoted from the regulation.
+    """
+    from research.rolling_backtest import rolling_exception_counts
+
+    counts = rolling_exception_counts(frame, window=250)
+    ceiling = max(12.0, float(counts.max().max()) * 1.05)
+
+    fig, ax = plt.subplots(figsize=(14, 5.5))
+    ax.axhspan(0, 5, color="#2e7d32", alpha=0.10)
+    ax.axhspan(5, 10, color="#f9a825", alpha=0.14)
+    ax.axhspan(10, ceiling, color="#d32f2f", alpha=0.12)
+    for boundary in (5, 10):
+        ax.axhline(boundary, color="#555555", lw=0.8, ls="--", alpha=0.7)
+
+    for method, (color, label, style) in METHOD_STYLE.items():
+        ax.plot(counts.index, counts[method], lw=1.4, color=color, ls=style, label=label)
+
+    ax.text(0.004, 0.06, "GREEN", transform=ax.transAxes, fontsize=9, color="#1b5e20")
+    ax.text(0.004, 0.42, "YELLOW", transform=ax.transAxes, fontsize=9, color="#a67c00")
+    ax.text(0.004, 0.88, "RED", transform=ax.transAxes, fontsize=9, color="#b71c1c")
+
+    ax.set_ylim(0, ceiling)
+    ax.set_ylabel("Exceptions in the trailing 250 days")
+    ax.set_title(
+        f"Basel traffic light through time — trailing 250-day exception count "
+        f"({config.asset_id}, {config.alpha:.0%} VaR)"
+    )
+    ax.legend(loc="upper left", ncols=3, fontsize=9)
+    ax.grid(alpha=0.15)
+    return _save(fig, output / "05_basel_zones.png")
+
+
 def write_figures(frame: pd.DataFrame, config, output: Path) -> list[Path]:
     return [
         plot_returns_and_var(frame, config, output),
         plot_exceptions(frame, config, output),
         plot_volatility_context(frame, config, output),
         plot_method_comparison(frame, config, output),
+        plot_basel_zones(frame, config, output),
     ]
