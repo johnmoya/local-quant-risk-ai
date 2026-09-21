@@ -1,0 +1,204 @@
+{
+  "generated_at_utc": "2026-09-21T23:08:07+00:00",
+  "environment": {
+    "python": "3.11.16",
+    "numpy": "2.4.6",
+    "pandas": "3.0.5",
+    "platform": "Linux-6.18.33.2-microsoft-standard-WSL2-x86_64-with-glibc2.39"
+  },
+  "data": {
+    "source_file": "data/research/SPY_prices.csv",
+    "source": "Yahoo Finance via yfinance, auto_adjust=True (dividends and splits)",
+    "instrument": "SPY",
+    "frequency": "daily",
+    "timezone": "naive dates as published by the vendor (US exchange trading days)",
+    "price_to_return": "log returns, via quant_risk_ai.data.returns.compute_returns"
+  },
+  "config": {
+    "asset_id": "SPY",
+    "window": 250,
+    "alpha": 0.99,
+    "position_value": 1000000.0,
+    "horizon_days": 1,
+    "n_simulations": 100000,
+    "monte_carlo_seed_base": 1000000
+  },
+  "protocol": {
+    "out_of_sample": "window [t-250, t-1] forecasts day t; r[t] never in the window",
+    "backtest_days": 2514,
+    "first_forecast": "2015-12-31",
+    "last_forecast": "2025-12-30",
+    "monte_carlo_seed_scheme": "1000000 + forecast_date.toordinal(); VaR and ES share the seed within a day so ES >= VaR holds exactly"
+  },
+  "tail_diagnostic": {
+    "expected_tail_observations": 2.5,
+    "sparse_tail": true,
+    "note": "n*(1-alpha) is non-integer and below 10 for every day of this study. Recorded by the research script because v1.0.2 does not report it; the diagnostic was added later on the M11 branch. Historical ES here averages about two or three observations."
+  },
+  "methods": {
+    "historical": {
+      "n_observations": 2514,
+      "observed_exceptions": 41,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.016309,
+      "violation_ratio": 1.6309,
+      "mean_var": 30444.04,
+      "median_var": 26882.29,
+      "mean_es": 38690.28,
+      "median_es": 32721.07,
+      "kupiec": {
+        "statistic": 8.488454,
+        "p_value": 0.003574,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 12.426239,
+        "p_value": 0.000423,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 20.914693,
+        "p_value": 2.9e-05,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "yellow",
+        "n_observations": 2514,
+        "n_violations": 41,
+        "cumulative_probability": 0.99877037,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 1219,
+        "yellow": 872,
+        "red": 174,
+        "pct_green": 53.82,
+        "worst_zone": "red"
+      }
+    },
+    "parametric": {
+      "n_observations": 2514,
+      "observed_exceptions": 72,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.02864,
+      "violation_ratio": 2.864,
+      "mean_var": 24190.21,
+      "median_var": 22023.67,
+      "mean_es": 27787.35,
+      "median_es": 25289.02,
+      "kupiec": {
+        "statistic": 58.685517,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 10.863904,
+        "p_value": 0.000981,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 69.549421,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 72,
+        "cumulative_probability": 1.0,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 873,
+        "yellow": 528,
+        "red": 864,
+        "pct_green": 38.54,
+        "worst_zone": "red"
+      }
+    },
+    "monte_carlo": {
+      "n_observations": 2514,
+      "observed_exceptions": 72,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.02864,
+      "violation_ratio": 2.864,
+      "mean_var": 24185.12,
+      "median_var": 21992.65,
+      "mean_es": 27782.26,
+      "median_es": 25243.71,
+      "kupiec": {
+        "statistic": 58.685517,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 10.863904,
+        "p_value": 0.000981,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 69.549421,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 72,
+        "cumulative_probability": 1.0,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 873,
+        "yellow": 528,
+        "red": 864,
+        "pct_green": 38.54,
+        "worst_zone": "red"
+      }
+    }
+  },
+  "stress_episodes": {
+    "q4_2018_selloff": {
+      "start": "2018-10-01",
+      "end": "2018-12-31",
+      "n_days": 63,
+      "worst_return": -0.032939,
+      "realized_volatility_annualised": 0.2368,
+      "historical_exceptions": 3,
+      "historical_mean_var": 30396.14,
+      "parametric_exceptions": 6,
+      "parametric_mean_var": 21017.67,
+      "monte_carlo_exceptions": 6,
+      "monte_carlo_mean_var": 21032.53
+    },
+    "covid_crash": {
+      "start": "2020-02-15",
+      "end": "2020-04-30",
+      "n_days": 52,
+      "worst_return": -0.115887,
+      "realized_volatility_annualised": 0.6531,
+      "historical_exceptions": 8,
+      "historical_mean_var": 53432.91,
+      "parametric_exceptions": 12,
+      "parametric_mean_var": 35409.72,
+      "monte_carlo_exceptions": 12,
+      "monte_carlo_mean_var": 35369.45
+    },
+    "bear_market_2022": {
+      "start": "2022-01-01",
+      "end": "2022-12-31",
+      "n_days": 251,
+      "worst_return": -0.044456,
+      "realized_volatility_annualised": 0.2426,
+      "historical_exceptions": 10,
+      "historical_mean_var": 31935.59,
+      "parametric_exceptions": 17,
+      "parametric_mean_var": 27808.16,
+      "monte_carlo_exceptions": 17,
+      "monte_carlo_mean_var": 27800.52
+    }
+  }
+}

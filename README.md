@@ -166,6 +166,125 @@ Under WSL2 the Windows NVIDIA driver provides the GPU; you still need the
 NVIDIA Container Toolkit installed inside the distro so Docker gets its
 `nvidia` runtime.
 
+## Real-Data Validation
+
+*This section exists on the `research/real-data-validation` branch, cut
+from `v1.0.2`. It adds no risk code: everything under `research/`
+orchestrates functions the engine already exposes.*
+
+Earlier stages validated the engine against synthetic data, which can
+confirm that the arithmetic is right but not whether the *distributional
+assumptions* survive real returns. This study runs all three methods out of
+sample on real market data and backtests them.
+
+### The experiment
+
+**SPY daily adjusted closes, 2015-01-02 to 2025-12-30** (2,765 prices →
+2,764 log returns), downloaded from Yahoo Finance and **committed as
+`data/research/SPY_prices.csv`**. The committed file is the reproducible
+source of truth: reproducing the study needs neither the `research` extra
+nor a network. `research/download_data.py` only refreshes it.
+
+Rolling, strictly out of sample: for each day `t` the models see returns
+`[t-250, t-1]` and forecast `VaR(t)` and `ES(t)` at **99%, 1-day**; `r[t]`
+is then observed and never enters the window. That gives **2,514 forecast
+days** (2015-12-31 to 2025-12-30). Monte Carlo runs at the production
+default of 100,000 simulations, seeded per day as
+`1_000_000 + date.toordinal()` — deterministic, distinct every day, and
+stable if the window changes. The whole run takes about 13 seconds and is
+byte-for-byte reproducible.
+
+Design and reasoning: **`docs/research_design_real_data.md`**.
+
+```bash
+uv sync --extra dev --extra research          # research extra: yfinance, matplotlib
+python -m research.rolling_backtest           # ~13s -> results/real_data/
+```
+
+Outputs land in `results/real_data/`: `backtest_results.csv` (one row per
+forecast day), `summary.json` (config, environment, every statistic) and
+four figures.
+
+### Results
+
+2,514 days, 99% VaR, so **25.1 exceptions expected**:
+
+| Method | Exceptions | Rate | Kupiec p | Christoffersen ind. p | Basel (full sample) | Mean VaR | Mean ES |
+|---|---|---|---|---|---|---|---|
+| Historical | 41 | 1.63% | 0.0036 | 0.0004 | yellow | 30,444 | 38,690 |
+| Parametric | 72 | 2.86% | <1e-13 | 0.0010 | red | 24,190 | 27,787 |
+| Monte Carlo | 72 | 2.86% | <1e-13 | 0.0010 | red | 24,185 | 27,782 |
+
+Basel over rolling 250-day windows (the supervisory view, since the
+whole-sample zone is a generalisation the regulation does not make):
+historical is green in 53.8% of windows, the other two in 38.5%.
+
+### What the evidence supports
+
+**Every method is rejected on both hypotheses tested.** Kupiec rejects
+correct unconditional coverage for all three — each produces materially
+more exceptions than 1%. Christoffersen's independence test also rejects
+for all three, meaning **exceptions cluster in time**: a breach today
+raises the probability of a breach tomorrow.
+
+**The normal assumption is the larger error.** Parametric and Monte Carlo
+breach 2.86% of days, nearly triple the nominal rate, and are almost
+indistinguishable from each other (mean VaR 24,190 vs 24,185) — expected,
+since Monte Carlo samples the same fitted normal the parametric method
+solves in closed form. Their agreement is a consistency check, not
+independent evidence. Historical simulation, which makes no distributional
+assumption, is better calibrated at 1.63%, more conservative (mean VaR 26%
+higher) and has a fatter ES/VaR ratio (1.27 vs 1.15).
+
+**Better-calibrated is not the same as well-calibrated.** Historical is
+still rejected, and its exceptions still cluster.
+
+The stress episodes show where the breaches concentrate:
+
+| Episode | Days | Worst day | Realised vol (ann.) | Exceptions (hist / para / MC) |
+|---|---|---|---|---|
+| Q4 2018 selloff | 63 | −3.29% | 23.7% | 3 / 6 / 6 |
+| COVID crash (Feb–Apr 2020) | 52 | −11.59% | 65.3% | 8 / 12 / 12 |
+| 2022 bear market | 251 | −4.45% | 24.3% | 10 / 17 / 17 |
+
+Figure `02_exceptions.png` shows a second, structural artefact: after COVID
+the historical VaR steps up and stays flat for a full year, then drops
+abruptly in March 2021 — not because risk changed that day, but because
+the crash left the 250-day window. An equally-weighted rolling window gives
+every observation the same weight until it falls off a cliff.
+
+### Limitations
+
+- **One instrument, one window, one confidence level.** Nothing here
+  generalises to other assets, and sensitivity to the 250/99% choices was
+  not explored.
+- **Historical ES rests on ~2.5 observations.** At `n=250, alpha=0.99` the
+  expected tail count is `250 × 0.01 = 2.5` — non-integer, and inside the
+  regime where the empirical ES estimator is known to misbehave. The study
+  records this flag on every row; it is set for all 2,514 days. ES figures
+  here, especially historical, are noisy by construction. This was
+  anticipated in the design, not discovered afterwards.
+- **Backtests are themselves random.** Three methods tested on one sample:
+  these are strong p-values, but they are evidence, not proof.
+- **No causal claim** is attached to the stress-episode labels; they are
+  date ranges in which returns behaved a certain way.
+- **1-day horizon only**, so nothing here tests the sqrt(t) scaling
+  approximation.
+
+### What this suggests next
+
+The clustering result is the actionable one: independence is rejected for
+*all three* methods, which is what one expects when none of them models
+**conditional volatility**. All three estimate a single distribution over a
+250-day window and apply it flat to the next day, so a calm day and a
+panicked day get the same forecast. That, rather than the choice between
+empirical and normal tails, is the structural gap this data exposes.
+
+The natural next step is therefore a conditionally-heteroskedastic
+volatility estimate (EWMA, or a GARCH-family model) feeding the existing
+VaR methods, and/or filtered historical simulation. **Not implemented**:
+this is where the evidence points, not a decision already taken.
+
 ## Logging
 
 The API logs one structured JSON line per request to stdout (`method`,
