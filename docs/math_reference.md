@@ -36,10 +36,32 @@ below; infinite prices are rejected.
 
 ### Date parsing: one explicit format, never inferred (changed in v1.0.1)
 
-- **Default `date_format="ISO8601"`.** Year-first dates (`2026-01-02`, with
-  or without a time component such as `2026-01-02T00:00:00` or
-  `2026-01-02 00:00:00`) parse; anything else, including `01/02/2026`, is
+- **Default `date_format="ISO8601"`, strict (tightened in v1.1.0).** A date
+  must be a full extended calendar date, `YYYY-MM-DD`, optionally followed
+  by a naive time (`2026-01-02T16:30`, `2026-01-02 00:00:00`,
+  `2026-01-02T00:00:00.5`). Anything else, including `01/02/2026`, is
   rejected with a `DataValidationError` that names the expected format.
+  pandas' own ISO 8601 mode is more lenient than that, and the loader
+  closes each gap explicitly:
+
+  | Input | pandas `format="ISO8601"` | Loader |
+  |---|---|---|
+  | `2026-01`, `2026` | read as `2026-01-01` | rejected: no day precision |
+  | `20260102` | read as `2026-01-02` | rejected: declare `date_format="%Y%m%d"` |
+  | `2026-1-2`, `2026/01/02`, ` 2026-01-02` | accepted | rejected |
+  | `2026-01-02T00:00:00Z`, `…-05:00` | timezone-aware index | rejected: no offsets |
+
+  **Offsets are rejected, not normalized.** Converting
+  `2026-01-02T23:00:00-05:00` to UTC gives `2026-01-03`: a different trading
+  day. Dropping the offset instead would silently reinterpret the
+  timestamp, which is the class of error v1.0.1 removed. A timezone-aware
+  index would also refuse to align with the naive dates everywhere else
+  (a single column mixing naive and aware values already fails inside
+  pandas). Data carrying offsets must be converted to local calendar dates
+  by the caller, who knows which exchange calendar applies. Pinned by
+  `test_iso8601_requires_a_full_extended_calendar_date` and
+  `test_iso8601_rejects_timezone_offsets_instead_of_normalizing` in
+  `tests/unit/data/test_loaders.py`.
 - **Any other convention must be declared by the caller**, as an explicit
   strftime format: `load_price_series(path, date_format="%d/%m/%Y")`.
   Every row must match it exactly; a row that doesn't is an error, not a

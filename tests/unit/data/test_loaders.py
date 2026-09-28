@@ -182,6 +182,56 @@ def test_iso8601_with_time_component_is_accepted(tmp_path):
     assert [d.date().isoformat() for d in series.index] == ["2026-01-02", "2026-01-03"]
 
 
+@pytest.mark.parametrize(
+    "lenient_date",
+    [
+        "2026-01",  # pandas reads it as 2026-01-01
+        "2026",  # pandas reads it as 2026-01-01
+        "20260102",  # basic format: needs an explicit date_format="%Y%m%d"
+        "2026-1-2",
+        "2026/01/02",
+        " 2026-01-02",
+    ],
+)
+def test_iso8601_requires_a_full_extended_calendar_date(tmp_path, lenient_date):
+    csv_path = _write_csv(tmp_path, f"date,price\n{lenient_date},100.0\n2026-01-05,101.0\n")
+
+    with pytest.raises(DataValidationError, match="YYYY-MM-DD"):
+        load_price_series(csv_path)
+
+
+@pytest.mark.parametrize(
+    "aware_date", ["2026-01-02T00:00:00Z", "2026-01-02T23:00:00-05:00", "2026-01-02T00:00+01:00"]
+)
+def test_iso8601_rejects_timezone_offsets_instead_of_normalizing(tmp_path, aware_date):
+    # Normalizing 2026-01-02T23:00:00-05:00 to UTC would make it 2026-01-03:
+    # a different trading day. Rejecting is the only choice that cannot
+    # silently move a price to the wrong date.
+    csv_path = _write_csv(tmp_path, f"date,price\n{aware_date},100.0\n2026-01-05,101.0\n")
+
+    with pytest.raises(DataValidationError, match="timezone offset"):
+        load_price_series(csv_path)
+
+
+def test_iso8601_accepts_fractional_seconds_and_minute_precision(tmp_path):
+    csv_path = _write_csv(
+        tmp_path, "date,price\n2026-01-02T16:30,100.0\n2026-01-03 16:30:00.5,101.0\n"
+    )
+
+    series = load_price_series(csv_path)
+
+    assert isinstance(series.index, pd.DatetimeIndex)
+    assert series.index.tz is None
+    assert [d.date().isoformat() for d in series.index] == ["2026-01-02", "2026-01-03"]
+
+
+def test_a_missing_date_cell_is_rejected(tmp_path):
+    csv_path = _write_csv(tmp_path, "date,price\n,100.0\n2026-01-05,101.0\n")
+
+    with pytest.raises(DataValidationError, match="unparseable"):
+        load_price_series(csv_path)
+
+
 @pytest.mark.parametrize("inferring_format", ["mixed", None])
 def test_formats_that_reenable_inference_are_rejected(tmp_path, inferring_format):
     csv_path = _write_csv(tmp_path, "date,price\n2026-01-02,100.0\n2026-01-03,101.0\n")

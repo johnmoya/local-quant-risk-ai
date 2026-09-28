@@ -74,15 +74,6 @@ independence test because none models conditional volatility.
   move the test client to `httpx2`, re-lock, and confirm the API tests and
   warnings are clean on both CI Python versions.
 
-- **pandas' ISO 8601 mode is lenient in two ways** that `data/loaders.py`
-  currently accepts (see `docs/math_reference.md`, "Price input contract"):
-  a month-only date (`2026-01`) is read as the 1st of that month, and a
-  `Z`/offset suffix produces a timezone-aware index that will not align
-  with naive dates elsewhere. Neither can swap day and month — the bug
-  v1.0.1 fixed — so this is tightening, not a correctness hole. Decide
-  whether to require day precision and reject (or normalize) timezone
-  offsets, and pin the choice with tests the same way v1.0.1 did.
-
 - **One unexplained `/explain` timeout, observed once, cause not
   identified.** On 2026-09-16, two consecutive first calls against a freshly
   started stack exceeded the then-default 60s Ollama timeout and returned

@@ -13,6 +13,14 @@ Validation contract (deliberately strict — see docs/math_reference.md):
   parsed row by row with dateutil (so 01/05 and 13/01 in the same column
   were read month-first and day-first respectively). Chronological
   sorting then made either corruption look like a plausible series.
+- Under the default, "ISO8601" means strictly YYYY-MM-DD with an optional
+  naive time, not pandas' lenient ISO mode. A partial date ("2026-01") is
+  rejected rather than read as the 1st, and a "Z"/offset suffix is rejected
+  rather than normalized: converting to UTC can move a timestamp across
+  midnight and change the trading day, and silently dropping the offset
+  would be exactly the kind of reinterpretation this contract forbids.
+  Timezone-aware data must be converted to local calendar dates by the
+  caller before loading.
 - The date column must parse cleanly; unparseable dates raise
   DataValidationError rather than being silently coerced to NaT and
   dropped.
@@ -49,6 +57,12 @@ ISO8601 = "ISO8601"
 # Both make pandas infer a format (per column or per row), which is the
 # ambiguity date_format exists to rule out.
 _INFERRING_FORMATS = (None, "mixed")
+
+# pandas' own "ISO8601" mode also accepts "2026-01" and "2026" (as the 1st),
+# "20260102", "2026-1-2", "2026/01/02", leading whitespace, and "Z"/offset
+# suffixes that yield a timezone-aware index. This pattern is the contract
+# instead: a full calendar date, an optional naive time, nothing else.
+_STRICT_ISO8601 = r"\d{4}-\d{2}-\d{2}(?:[T ]\d{2}:\d{2}(?::\d{2}(?:\.\d{1,9})?)?)?"
 
 
 def load_price_series(
@@ -92,6 +106,17 @@ def load_price_series(
         raise DataValidationError(
             f"CSV at {path} is missing required column(s): {sorted(missing_columns)}"
         )
+
+    if date_format == ISO8601:
+        raw = df[date_column]
+        conforming = raw.fillna("").str.fullmatch(_STRICT_ISO8601)
+        if not conforming.all():
+            offending = raw[~conforming].head(3).tolist()
+            raise DataValidationError(
+                f"CSV at {path} contains unparseable date values for date_format "
+                f"'ISO8601' {offending}: expected YYYY-MM-DD, optionally followed by "
+                f"a time (HH:MM[:SS]), with no timezone offset"
+            )
 
     try:
         dates = pd.to_datetime(df[date_column], format=date_format, errors="raise")
