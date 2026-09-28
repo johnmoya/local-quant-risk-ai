@@ -49,6 +49,29 @@ formats in `data/loaders.py` (see `docs/math_reference.md`), Docker base
 images pinned by digest, `uv sync --locked` in CI, the `risk/` no-I/O rule
 enforced by test, and CI on Python 3.11/3.12 including release tags.
 
+### `v1.1.0` release notes (in progress, unreleased)
+
+`v1.1.0` closes M11 (multi-asset portfolios). Changes to existing
+behavior, which callers may notice:
+
+- **Behavior change — stricter ISO 8601 dates in `load_price_series`.**
+  Under the default `date_format="ISO8601"`, inputs that used to load
+  now raise `DataValidationError`: partial dates (`2026-01`, `2026`,
+  previously read as the 1st), compact `20260102` (load it with
+  `date_format="%Y%m%d"`), unpadded or slash-separated dates (`2026-1-2`,
+  `2026/01/02`), leading whitespace, and any `Z`/offset suffix, which
+  previously produced a timezone-aware index. Offsets are rejected rather
+  than normalized; see "Price input contract" in `docs/math_reference.md`.
+  Full `YYYY-MM-DD` dates, with or without a naive time, load exactly as
+  before.
+- **Ollama connect timeout.** New `QUANT_RISK_AI_OLLAMA_CONNECT_TIMEOUT_SECONDS`
+  (default `5`). An unreachable Ollama now fails in 5s instead of after
+  the full 180s read budget, and the 503's `detail` says which phase
+  timed out.
+- **Test/runtime dependencies.** `httpx2` joins the `dev` extra for
+  Starlette's `TestClient`; Starlette moves 1.6.0 → 1.7.0. The suite runs
+  warning-free under `pytest -W error`.
+
 ### Real-data validation — complete
 
 Rolling out-of-sample backtest of Historical, Parametric and Monte Carlo
