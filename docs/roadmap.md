@@ -66,14 +66,6 @@ independence test because none models conditional volatility.
 
 ### Maintenance backlog
 
-- **Starlette `TestClient` on `httpx` is deprecated.** pytest reports
-  `StarletteDeprecationWarning: Using httpx with starlette.testclient is
-  deprecated; install httpx2 instead` (plus an anyio `BlockingPortal` alias
-  deprecation from the same stack). It works today but will break when
-  Starlette removes `httpx` support. Handle it in a future dependency bump:
-  move the test client to `httpx2`, re-lock, and confirm the API tests and
-  warnings are clean on both CI Python versions.
-
 - **One unexplained `/explain` timeout, observed once, cause not
   identified.** On 2026-09-16, two consecutive first calls against a freshly
   started stack exceeded the then-default 60s Ollama timeout and returned
