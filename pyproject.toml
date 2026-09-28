@@ -28,6 +28,10 @@ dev = [
     "ruff>=0.4",
     "mypy>=1.9",
     "pandas-stubs>=2.2",
+    # starlette.testclient imports httpx2 first and only falls back to httpx
+    # with a deprecation warning. Test-only: the app's own Ollama client
+    # stays on httpx, a runtime dependency.
+    "httpx2>=2.13",
 ]
 # Research-only, deliberately NOT runtime dependencies: nothing under
 # src/quant_risk_ai imports these, so the API and the risk engine ship
