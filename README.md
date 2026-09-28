@@ -168,9 +168,11 @@ NVIDIA Container Toolkit installed inside the distro so Docker gets its
 
 ## Real-Data Validation
 
-*This section exists on the `research/real-data-validation` branch, cut
-from `v1.0.2`. It adds no risk code: everything under `research/`
-orchestrates functions the engine already exposes.*
+*Developed on the `research/real-data-validation` branch, cut from
+`v1.0.2`, and merged into `master` (PR #1) on top of M11.0–M11.3 with every
+published figure reproduced byte for byte. It adds no risk code:
+everything under `research/` orchestrates functions the engine already
+exposes.*
 
 Earlier stages validated the engine against synthetic data, which can
 confirm that the arithmetic is right but not whether the *distributional

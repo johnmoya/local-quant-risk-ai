@@ -299,7 +299,7 @@ def annualised_volatility(returns: pd.Series) -> float | None:
     literal that a strict parser rejects — and this study writes
     summary.json for other tools to read. Returning None serialises as
     `null`, which is both honest and parseable. (The same trap produced
-    v1.0.2's `"value": null` response, from infinity rather than NaN.)
+    the pre-M10 `"value": null` response, from infinity rather than NaN.)
     """
     if len(returns) < 2:
         return None
@@ -475,7 +475,7 @@ def main() -> None:
     # or Infinity literals, which are not valid JSON and which a strict
     # parser rejects. Failing at write time turns a silently malformed
     # artefact into an immediate error — the same trap that produced
-    # v1.0.2's `"value": null` response.
+    # the pre-M10 `"value": null` response.
     (args.output_dir / "summary.json").write_text(
         json.dumps(summary, indent=2, allow_nan=False) + "\n", encoding="utf-8"
     )

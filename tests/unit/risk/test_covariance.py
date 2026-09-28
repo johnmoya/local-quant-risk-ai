@@ -176,7 +176,7 @@ def test_a_zero_variance_asset_gives_a_non_finite_condition_number():
     estimate = estimate_covariance(_aligned({"AAA": _random(300, 43), "FLAT": np.zeros(300)}))
 
     # None, not float("inf"): infinity is not valid JSON, which is how
-    # v1.0.2's `"value": null` bug happened.
+    # the pre-M10 `"value": null` bug happened.
     assert estimate.condition_number is None
     assert estimate.ill_conditioned is True
 

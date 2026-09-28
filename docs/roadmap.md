@@ -49,6 +49,21 @@ formats in `data/loaders.py` (see `docs/math_reference.md`), Docker base
 images pinned by digest, `uv sync --locked` in CI, the `risk/` no-I/O rule
 enforced by test, and CI on Python 3.11/3.12 including release tags.
 
+### Real-data validation — complete
+
+Rolling out-of-sample backtest of Historical, Parametric and Monte Carlo
+VaR/ES (99%, 1-day, 250-day window) on SPY 2015–2025: Kupiec,
+Christoffersen and the Basel traffic light per calendar year and through
+time. Adds no code under `src/`; results, figures and limitations are in
+the README's "Real-Data Validation" section and the design in
+`docs/research_design_real_data.md`. Merged into `master` in PR #1 on top
+of M11.0–M11.3, where the re-run reproduced every published figure
+byte for byte. CI on the merge commit:
+[run 36497698606](https://github.com/johnmoya/local-quant-risk-ai/actions/runs/36497698606).
+
+Its main finding feeds M13: all three methods fail Christoffersen's
+independence test because none models conditional volatility.
+
 ### Maintenance backlog
 
 - **Starlette `TestClient` on `httpx` is deprecated.** pytest reports

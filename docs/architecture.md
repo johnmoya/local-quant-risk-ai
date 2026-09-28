@@ -111,6 +111,47 @@ change:
   (e.g. Monte Carlo simulation count and RNG seed) so new methods don't need
   new top-level fields.
 
+## Pattern: non-finite floats fail silently
+
+`inf` and `NaN` never raise on their own. Float parsing overflows to
+`inf` without complaint, arithmetic propagates both, comparisons against
+them are `False` (so a `value < 0` guard admits them), and serialisers
+turn them into something that *looks* like a result: a JSON `null`, or a
+bare `NaN` / `Infinity` literal that Python reads back happily and a
+strict parser rejects. The failure shows up downstream, in an output
+artefact, far from where the non-finite value was born.
+
+Known cases, each now pinned by a test:
+
+- **`position_value: 1e400` → `"value": null`** (before M10's hardening
+  pass). A valid JSON literal overflowed to `inf`, flowed through VaR
+  unchecked and came back as a 200 with `"value": null`. Now a 422 naming
+  `position_value`: `validate_position_value` in `risk/stats_utils.py`,
+  `test_infinite_position_value_returns_422_not_a_broken_200` in
+  `tests/unit/api/test_var.py`.
+- **`summary.json` with `NaN`** (real-data research). A calendar year with
+  one forecast day has an undefined sample volatility, which pandas
+  returns as `NaN` and `json.dumps` writes as a bare `NaN` token. Now
+  `None` → `null`, and the file is written with `allow_nan=False`:
+  `annualised_volatility` in `research/rolling_backtest.py`,
+  `test_the_summary_is_strictly_valid_json`.
+- **Covariance condition number of a singular matrix is `inf`** (M11.2).
+  Reported as `float | None` instead: `risk/covariance.py`, with a test
+  serialising the degenerate case under `allow_nan=False`.
+
+The rule that follows from them:
+
+1. **Check finiteness where a value enters or is constructed**, not
+   where it is used: `RiskResult`, `AssetReturnSeries`, `Position.notional`
+   and `estimate_covariance` all reject non-finite values at construction.
+2. **An undefined quantity is `None`, never `NaN` or `inf`.** `None`
+   serialises as `null`, which is honest and parseable.
+3. **Write every JSON artefact with `allow_nan=False`**, so a leak fails
+   at write time instead of producing a file that breaks its consumer.
+4. **Test the serialised form, not only the Python object**: encode with
+   `allow_nan=False` and decode with a `parse_constant` that rejects
+   `NaN` / `Infinity`.
+
 ## v1 scope boundaries
 
 - **Single asset, single return series.** No `Portfolio`/`Position` types or
