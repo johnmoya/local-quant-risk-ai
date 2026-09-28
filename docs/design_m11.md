@@ -106,10 +106,18 @@ numpy version and the CPU architecture all get a say in. The measurement
 was taken on x86-64 with the numpy `uv.lock` pins, which is what CI runs,
 so it holds there. On ARM, against a different BLAS, or after a numpy
 upgrade, a case may exceed 5 ulps with nothing actually wrong — that is
-expected sensitivity to the arithmetic environment, not a regression. The
-correct response is to re-measure on that environment and update the
-constant to the figure measured there, never to widen it until the suite
-goes quiet.
+expected sensitivity to the arithmetic environment, not a regression.
+
+*Revised before M11.4:* asserting the measured maximum itself made that
+sensitivity a test failure waiting to happen. The tests now assert
+**16 ulps** (`K1_MAX_ULPS`, about 2e-15 relative, roughly three times the
+measurement), and the measured 5 is recorded next to it as
+`MEASURED_MAX_ULPS`. The margin absorbs a few extra roundings from a
+different reduction order while staying some twelve orders of magnitude
+below a real defect (`ddof=0` instead of `ddof=1` at n=300 is off by
+1.7e-3). If an environment exceeds 16, re-measure there and record the
+figure before touching the constant; never widen it until the suite goes
+quiet.
 
 **Two alternatives were considered and rejected.**
 
@@ -272,7 +280,7 @@ v1 exactly.
 |---|---|
 | Historical VaR | Quantile of `L`: `VaR = max(0, -Q_{1-alpha}(L))`. The quantile is exactly scale-equivariant (verified numerically: `quantile(V·r) == V·quantile(r)` bit for bit), so `k = 1` reproduces v1's floats |
 | Historical ES | Tail mean of `L` below its own cutoff. The tail is defined on portfolio P&L, not per asset: portfolio ES is not the sum of per-asset ES |
-| Parametric | The real change: `mu_p = wᵀ mu`, `sigma_p = sqrt(wᵀ Σ w)`, times the portfolio value. This is where covariance enters. Closed-form ES is the same formula scaled by `sigma_p`. Matches v1 at k=1 to within 5 ulps rather than exactly — see the amendment below |
+| Parametric | The real change: `mu_p = wᵀ mu`, `sigma_p = sqrt(wᵀ Σ w)`, times the portfolio value. This is where covariance enters. Closed-form ES is the same formula scaled by `sigma_p`. Matches v1 at k=1 to within 5 ulps measured (16 asserted) rather than exactly — see the amendment below |
 | Monte Carlo | `Z ~ N(0, I_k)`, `R_sim = mu + Z · Lᵀ` where `Σ = L Lᵀ`. The M4 design note anticipated exactly this. Verified: at `k = 1` this path is **bit-identical** to v1's `mu + sigma * Z`, so published Monte Carlo figures do not move — pinned by a seeded regression test |
 | Backtesting | **No change.** The four tests operate on the boolean violation series; only the upstream production of the realised series differs, which is M11's job, not `risk/backtesting.py`'s. At most a thin adapter if P&L is passed instead of returns plus a value |
 

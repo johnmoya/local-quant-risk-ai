@@ -146,8 +146,10 @@ def portfolio_parametric_var(
     value differed from v1's by **at most 5 ulps** (72% of cases identical,
     worst relative difference 6.7e-16, about three machine epsilons). The
     mean matched exactly in every case; the whole difference comes from
-    sigma. `tests/unit/risk/test_portfolio_parametric.py` asserts that
-    bound rather than a vague tolerance.
+    sigma. `tests/unit/risk/test_portfolio_parametric.py` asserts 16 ulps,
+    about three times the measurement, because an ulp count depends on
+    BLAS, numpy version and CPU architecture (see `K1_MAX_ULPS` in
+    `tests/unit/risk/_helpers.py`).
 
     Raises:
         InvalidParameterError: alpha is not in the open interval (0, 1), or

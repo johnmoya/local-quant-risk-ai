@@ -19,25 +19,19 @@ from quant_risk_ai.risk.expected_shortfall import (
     portfolio_parametric_expected_shortfall,
 )
 from quant_risk_ai.risk.var_parametric import parametric_var, portfolio_parametric_var
-from tests.unit.risk._helpers import ulps_between
+from tests.unit.risk._helpers import K1_MAX_ULPS, ulps_between
 
 # Measured over 30,000 random cases spanning notionals 1e-3..1e12, alphas
 # 0.50..0.999, horizons 1..250 and return scales across eight orders of
-# magnitude: the worst observed difference was 5 ulps. The bound is
-# asserted, not the tolerance hand-waved.
+# magnitude: the worst observed difference was 5 ulps (72% of cases
+# identical, worst relative difference 6.7e-16), on x86-64 with the numpy
+# uv.lock pins.
 #
-# It is an *empirical maximum, not a proved bound, and it is
-# environment-dependent*. An ulp count reflects summation order, which is
-# decided by the BLAS implementation, the numpy version and the CPU
-# architecture. This project measured it on x86-64 with the numpy that
-# uv.lock pins, which is also what CI runs, so the bound holds there. On
-# ARM, with a different BLAS, or after a numpy upgrade, a case could exceed
-# it without anything being wrong: that is expected sensitivity to the
-# arithmetic environment, not a regression in this code. If that happens,
-# re-run the measurement on the new environment and update MAX_ULPS with
-# the new figure — do not silently widen it to whatever makes the suite
-# pass.
-MAX_ULPS = 5
+# That is an empirical maximum, not a proved bound, and it is
+# environment-dependent, so the tests assert K1_MAX_ULPS (16) rather than
+# the measurement itself; see its note in _helpers.py.
+MEASURED_MAX_ULPS = 5
+MAX_ULPS = K1_MAX_ULPS
 
 ALPHAS = [0.90, 0.95, 0.99]
 

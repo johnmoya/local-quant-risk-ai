@@ -19,6 +19,22 @@ def _ordered(value: float) -> int:
     return (1 << 63) - bits if bits < 0 else bits
 
 
+# Asserted bound on the k=1 gap between v1 and the covariance-matrix path
+# (parametric M11.3, Monte Carlo M11.4). The measured maximum is 5 ulps for
+# both (30,000 parametric and 3,000 Monte Carlo random cases, x86-64, the
+# numpy uv.lock pins); each test module records its own measurement.
+#
+# The assertion is ~3x the measurement, not the measurement itself: an ulp
+# count reflects summation order, which BLAS, numpy version and CPU
+# architecture all influence, so asserting the exact empirical maximum
+# would fail on a new environment with nothing wrong. 16 ulps (~2e-15
+# relative) is still far below anything a real defect produces: ddof=0
+# instead of 1 at n=300 is off by 1.7e-3, around 10^12 ulps. If a new
+# environment exceeds 16, re-measure there and record the figure before
+# changing this; never widen it just to quiet the suite.
+K1_MAX_ULPS = 16
+
+
 def ulps_between(first: float, second: float) -> int:
     """How many representable float64 steps apart two numbers are.
 
