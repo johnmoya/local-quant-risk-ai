@@ -10,8 +10,9 @@ import logging
 import httpx
 import pytest
 
+from quant_risk_ai import config
 from quant_risk_ai.core.exceptions import LLMUnavailableError
-from quant_risk_ai.llm.ollama_client import OllamaClient
+from quant_risk_ai.llm.ollama_client import OllamaClient, create_default_client
 
 
 def _client(handler) -> OllamaClient:
@@ -65,6 +66,54 @@ def test_connection_failure_raises_llm_unavailable():
 
     with pytest.raises(LLMUnavailableError):
         _client(handler).generate("prompt")
+
+
+def _timed_out_client(exc_type: type[httpx.TimeoutException]) -> OllamaClient:
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise exc_type("timed out", request=request)
+
+    http_client = httpx.Client(
+        transport=httpx.MockTransport(handler),
+        base_url="http://ollama.local:11434",
+        timeout=httpx.Timeout(180.0, connect=5.0),
+    )
+    return OllamaClient(model="qwen3:8b", client=http_client)
+
+
+def test_connect_timeout_names_the_connect_phase_and_its_budget():
+    with pytest.raises(LLMUnavailableError) as info:
+        _timed_out_client(httpx.ConnectTimeout).generate("prompt")
+
+    message = str(info.value)
+    assert "no connection to http://ollama.local:11434 within 5.0s" in message
+    assert "180" not in message
+
+
+def test_read_timeout_names_the_read_phase_and_its_budget():
+    with pytest.raises(LLMUnavailableError) as info:
+        _timed_out_client(httpx.ReadTimeout).generate("prompt")
+
+    message = str(info.value)
+    assert "accepted the request but sent no response within 180.0s" in message
+    assert "QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS" in message
+
+
+def test_failure_log_records_the_exception_type(caplog):
+    with caplog.at_level(logging.INFO), pytest.raises(LLMUnavailableError):
+        _timed_out_client(httpx.ConnectTimeout).generate("prompt")
+
+    records = [r for r in caplog.records if "Ollama request failed" in r.message]
+    assert records[0].error_type == "ConnectTimeout"
+
+
+def test_default_client_bounds_connect_separately_from_read(monkeypatch):
+    monkeypatch.setattr(config, "OLLAMA_TIMEOUT_SECONDS", 180.0)
+    monkeypatch.setattr(config, "OLLAMA_CONNECT_TIMEOUT_SECONDS", 5.0)
+
+    timeout = create_default_client().client.timeout
+
+    assert timeout.connect == 5.0
+    assert timeout.read == 180.0
 
 
 def test_missing_response_field_raises_llm_unavailable():

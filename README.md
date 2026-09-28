@@ -141,11 +141,20 @@ for GPU); Ollama keeps the model loaded for about 5 minutes of inactivity,
 so calls in that window are the "subsequent" column. A slower CPU than the
 one above will take proportionally longer.
 
-**Timeout.** `QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS` defaults to `180`,
-chosen to cover the first call comfortably on hardware like the above and
-leave room for slower CPU-only machines. If `/explain` returns
-`503 Ollama request failed: timed out` on your machine, raise it in `.env`
-— the numeric endpoints are unaffected either way, by design. Note that the
+**Timeouts.** Two budgets, because the two failures mean different things:
+
+- `QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS` (default `180`) is the *read*
+  timeout: how long Ollama may take to answer once connected. It covers
+  the first call comfortably on hardware like the above and leaves room
+  for slower CPU-only machines. A 503 saying Ollama *"accepted the request
+  but sent no response within 180.0s"* means raise it in `.env`.
+- `QUANT_RISK_AI_OLLAMA_CONNECT_TIMEOUT_SECONDS` (default `5`) bounds
+  establishing the connection, which takes milliseconds even while a model
+  loads. A 503 saying *"no connection to … within 5.0s"* means Ollama is
+  unreachable (not running, wrong URL, or a network problem); a longer
+  timeout will not fix it.
+
+The numeric endpoints are unaffected either way, by design. Note that the
 first `/explain` call after `docker compose exec ollama ollama pull
 qwen3:8b` is the slowest one you'll see.
 

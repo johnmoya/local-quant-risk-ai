@@ -66,20 +66,54 @@ independence test because none models conditional volatility.
 
 ### Maintenance backlog
 
-- **One unexplained `/explain` timeout, observed once, cause not
-  identified.** On 2026-09-16, two consecutive first calls against a freshly
-  started stack exceeded the then-default 60s Ollama timeout and returned
-  503, with `ollama ps` showing no loaded model. It did not reproduce on
-  2026-09-18 under the same compose configuration and the same
-  digest-pinned image: the first call took 18.7s on CPU and 38.8s on GPU.
-  Disk was ruled out — reading the full 5.2 GB model blob with `O_DIRECT`
-  (bypassing the page cache) takes 2.7s at 1.9 GB/s — so the cost is model
-  load plus inference, not I/O. Mitigated, not fixed, by the 180s default
-  timeout (v1.0.2). If it recurs, capture the `ollama` container logs from
-  container start through the failing call before restarting anything; the
-  hypothesis worth testing first is contention between the healthcheck,
-  Ollama's startup cloud-hydration calls (which log
-  `context deadline exceeded` when offline) and the first model load.
+- **`/explain` timeout of 2026-09-16: not reproduced; closed with an open
+  hypothesis.** Two consecutive calls against a freshly started stack
+  returned `503 Ollama request failed: timed out` after 61.5s each (then
+  60s budget), with `ollama ps` empty before and after.
+
+  *What the evidence shows* (session transcript, journald, Windows event
+  log): Ollama never started loading the model — its log has no
+  `loading model` line — and the Ollama container consumed **1.38s of CPU
+  in total** over its 3m11s life. A healthy first call costs it ~92s of
+  CPU. The requests produced no work in Ollama at all, so the 60s were
+  spent waiting, not loading.
+
+  *Hypotheses ruled out, each by experiment on 2026-09-28:*
+  - **Cloud-hydration calls blocking the request path** (the hypothesis
+    previously recorded here): egress blackholed two ways (unresolvable
+    DNS; `ollama.com` resolving to an unroutable address) reproduces the
+    exact `context deadline exceeded` warnings of 2026-09-16, and the
+    first call still returns 200 in 18–20s.
+  - **Another Ollama instance competing for RAM/VRAM**: the host also runs
+    a native Windows Ollama and a second containerized one (another
+    project); neither served a request that day, and the API could only
+    reach this stack's `ollama` service by name.
+  - **Guest clock drift after host sleep**: the host resumed from a 21h S3
+    sleep at 19:49 and WSL's clock was stepped every ~33s afterwards, but
+    the guest monotonic rate was 0.97 then and 0.92 on 2026-09-28, when
+    every call succeeded.
+  - **Missing model / slow disk**: the model has been in the volume since
+    2026-09-12; reading the 5.2 GB blob with `O_DIRECT` takes 2.7s.
+  - **Code**: the `/explain` path and client were byte-identical to
+    today's apart from the timeout default.
+
+  *Open hypothesis:* the stack's Docker network was created on 2026-09-12,
+  survived two unclean WSL shutdowns (containers `Exited (255)`; dockerd
+  logged `sandbox … not found` and `Failed deleting service host entries`
+  at restore), and 2026-09-16 was the only run that reused it — every
+  working run, including 2026-09-18's, used a freshly created network. A
+  broken restored network would make the API's TCP connect to
+  `ollama:11434` hang until the timeout, matching all of the above. Not
+  tested, deliberately: reproducing it needs `wsl --terminate`, which kills
+  every WSL process, to test a property of the environment rather than of
+  this code.
+
+  *What changed so the next occurrence is diagnosable:* the client now
+  bounds connect (5s) separately from read (180s) and logs the exception
+  type. A connect failure now surfaces in 5s as *"no connection to … within
+  5.0s"*, and a slow model as *"accepted the request but sent no
+  response"*; on 2026-09-16 both would have read `timed out`. If it
+  recurs, the message alone confirms or rules out the open hypothesis.
 
 ## v2 — Quant Risk + ML Engineering platform (planned, not implemented)
 

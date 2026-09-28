@@ -55,10 +55,11 @@ class OllamaClient:
                 extra={
                     "model": self.model,
                     "duration_ms": round((time.perf_counter() - start) * 1000, 2),
+                    "error_type": type(exc).__name__,
                     "error": str(exc),
                 },
             )
-            raise LLMUnavailableError(f"Ollama request failed: {exc}") from exc
+            raise LLMUnavailableError(self._describe_failure(exc)) from exc
         except ValueError as exc:
             logger.warning(
                 "Ollama returned a non-JSON response",
@@ -83,10 +84,31 @@ class OllamaClient:
         )
         return _THINK_BLOCK_RE.sub("", text).strip()
 
+    def _describe_failure(self, exc: httpx.HTTPError) -> str:
+        # httpx renders both timeouts as a bare "timed out"; which phase
+        # expired is the first thing anyone debugging a 503 needs to know.
+        timeout = self.client.timeout
+        url = self.client.base_url
+        if isinstance(exc, httpx.ConnectTimeout):
+            return (
+                f"Ollama request failed: no connection to {url} within {timeout.connect}s "
+                f"(host unreachable or not accepting connections)"
+            )
+        if isinstance(exc, httpx.ReadTimeout):
+            return (
+                f"Ollama request failed: {url} accepted the request but sent no response "
+                f"within {timeout.read}s (the first call loads the model; see "
+                f"QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS)"
+            )
+        return f"Ollama request failed: {exc}"
+
 
 def create_default_client() -> OllamaClient:
     """Build the OllamaClient the API uses by default, from quant_risk_ai.config."""
     http_client = httpx.Client(
-        base_url=config.OLLAMA_BASE_URL, timeout=config.OLLAMA_TIMEOUT_SECONDS
+        base_url=config.OLLAMA_BASE_URL,
+        timeout=httpx.Timeout(
+            config.OLLAMA_TIMEOUT_SECONDS, connect=config.OLLAMA_CONNECT_TIMEOUT_SECONDS
+        ),
     )
     return OllamaClient(model=config.OLLAMA_MODEL, client=http_client)

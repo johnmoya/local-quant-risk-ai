@@ -31,7 +31,16 @@ OLLAMA_MODEL: str = os.environ.get("QUANT_RISK_AI_OLLAMA_MODEL", "qwen3:8b")
 # host: 38.8s first call on GPU, 18.7s on CPU, then 0.7s and 7.4s warm. The
 # default leaves room for slower CPU-only machines; see the README's
 # "Explanations and hardware" section.
+#
+# That budget is for *reading* the response. Establishing the connection
+# has its own, short budget: Ollama answers a TCP connect in milliseconds
+# even while it loads a model, so a connect that takes seconds means an
+# unreachable or blackholed host, and waiting 180s to report it only hides
+# the failure behind a slow one.
 OLLAMA_TIMEOUT_SECONDS: float = float(os.environ.get("QUANT_RISK_AI_OLLAMA_TIMEOUT_SECONDS", "180"))
+OLLAMA_CONNECT_TIMEOUT_SECONDS: float = float(
+    os.environ.get("QUANT_RISK_AI_OLLAMA_CONNECT_TIMEOUT_SECONDS", "5")
+)
 
 # M10: structured logging (core/logging.py). A plain string, not a
 # logging.Level int, so it stays a simple env-var round trip; core/logging.py
