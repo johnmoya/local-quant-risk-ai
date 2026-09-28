@@ -62,5 +62,11 @@ jobs:
       # syntax, so each leg type-checks against its own interpreter version.
       # pyproject.toml's python_version = "3.11" stays the local default, and
       # the 3.11 leg keeps guaranteeing 3.11 compatibility.
+      # research/ is included even though CI installs only the `dev` extra:
+      # yfinance and matplotlib are declared ignore_missing_imports in
+      # pyproject.toml, so the research scripts stay type-checked without
+      # pulling their dependencies into CI.
       - name: mypy
-        run: uv run --no-sync mypy --python-version ${{ matrix.python-version }} src tests
+        run: >-
+          uv run --no-sync mypy --python-version ${{ matrix.python-version }}
+          src tests research
