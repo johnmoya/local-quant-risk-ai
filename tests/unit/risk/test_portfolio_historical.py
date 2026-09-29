@@ -11,6 +11,7 @@ Three properties matter here beyond "it computes a number":
    subadditivity exactly, which is pinned below rather than assumed away.
 """
 
+import json
 from datetime import date
 
 import numpy as np
@@ -340,6 +341,24 @@ def test_metadata_records_the_window_and_the_dropped_dates():
     assert result.metadata["window_start"] == "2026-01-01"
     assert result.metadata["window_end"] == "2026-02-09"
     assert result.n_observations == 39
+    assert result.metadata["dropped_dates_missing_assets"] == {"2026-01-08": ["MSFT"]}
+    assert result.metadata["alignment_by_asset"] == {
+        "AAPL": {
+            "n_input": 40,
+            "n_before_window": 0,
+            "n_after_window": 0,
+            "n_dropped": 1,
+            "n_aligned": 39,
+        },
+        "MSFT": {
+            "n_input": 39,
+            "n_before_window": 0,
+            "n_after_window": 0,
+            "n_dropped": 0,
+            "n_aligned": 39,
+        },
+    }
+    json.dumps(result.metadata, allow_nan=False)
 
 
 def test_explicit_window_restricts_the_estimation_sample():

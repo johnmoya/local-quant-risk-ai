@@ -104,4 +104,17 @@ def alignment_metadata(aggregate: PortfolioReturns, portfolio: Portfolio) -> dic
         "window_end": alignment.window_end.isoformat(),
         "dropped_dates": [day.isoformat() for day in alignment.dropped_dates],
         "n_dropped_dates": len(alignment.dropped_dates),
+        "dropped_dates_missing_assets": {
+            day.isoformat(): list(assets) for day, assets in alignment.missing_assets.items()
+        },
+        "alignment_by_asset": {
+            entry.asset_id: {
+                "n_input": entry.n_input,
+                "n_before_window": entry.n_before_window,
+                "n_after_window": entry.n_after_window,
+                "n_dropped": entry.n_dropped,
+                "n_aligned": entry.n_aligned,
+            }
+            for entry in alignment.by_asset
+        },
     }

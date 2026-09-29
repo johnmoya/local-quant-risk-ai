@@ -45,6 +45,25 @@ from quant_risk_ai.core.exceptions import DataValidationError, InsufficientDataE
 from quant_risk_ai.data.schemas import Portfolio, ReturnMethod
 
 
+@dataclass(frozen=True)
+class AssetAlignment:
+    """Where each of one asset's observations went.
+
+    Every observation lands in exactly one bucket, so
+    `n_input == n_before_window + n_after_window + n_dropped + n_aligned`
+    always holds: nothing an asset submitted can disappear unaccounted for.
+    `n_dropped` counts this asset's own dates, inside the window, that the
+    intersection removed because some *other* asset lacked them.
+    """
+
+    asset_id: str
+    n_input: int
+    n_before_window: int
+    n_after_window: int
+    n_dropped: int
+    n_aligned: int
+
+
 @dataclass(frozen=True, eq=False)
 class AlignedReturns:
     """One return matrix for a portfolio, plus the record of what it cost.
@@ -57,7 +76,9 @@ class AlignedReturns:
     requested, or the common window derived from the assets' histories.
     `dropped_dates` lists the dates inside that window that some asset was
     missing; dates outside the window are accounted for by the window
-    itself, not by this list.
+    itself, not by this list. `missing_assets` says, for each dropped date,
+    which assets lacked it, and `by_asset` accounts for every observation
+    each asset submitted.
     """
 
     asset_ids: tuple[str, ...]
@@ -67,6 +88,8 @@ class AlignedReturns:
     dropped_dates: tuple[date_type, ...]
     method: ReturnMethod
     currency: str
+    missing_assets: dict[date_type, tuple[str, ...]]
+    by_asset: tuple[AssetAlignment, ...]
 
     @property
     def n_observations(self) -> int:
@@ -163,6 +186,23 @@ def align_returns(
         {name: in_window[name].reindex(common_index) for name in portfolio.asset_ids},
         index=common_index,
     )
+    missing_assets = {
+        stamp.date(): tuple(
+            name for name in portfolio.asset_ids if stamp not in in_window[name].index
+        )
+        for stamp in dropped
+    }
+    by_asset = tuple(
+        AssetAlignment(
+            asset_id=name,
+            n_input=len(series_by_asset[name]),
+            n_before_window=int((series_by_asset[name].index < window_first).sum()),
+            n_after_window=int((series_by_asset[name].index > window_last).sum()),
+            n_dropped=len(in_window[name]) - len(common),
+            n_aligned=len(common),
+        )
+        for name in portfolio.asset_ids
+    )
 
     return AlignedReturns(
         asset_ids=portfolio.asset_ids,
@@ -172,4 +212,6 @@ def align_returns(
         dropped_dates=tuple(stamp.date() for stamp in dropped),
         method=portfolio.method,
         currency=portfolio.currency,
+        missing_assets=missing_assets,
+        by_asset=by_asset,
     )

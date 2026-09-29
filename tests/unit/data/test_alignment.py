@@ -9,6 +9,7 @@ dropped, and which window was used — because that is what makes an
 
 from datetime import date
 
+import numpy as np
 import pandas as pd
 import pytest
 
@@ -206,3 +207,112 @@ def test_method_and_currency_are_carried_through():
 
     assert aligned.method is ReturnMethod.LOG
     assert aligned.currency == "USD"
+
+
+# ------------------------------------------------- per-asset accounting
+
+
+def _accounting(aligned) -> dict[str, tuple[int, int, int, int, int]]:
+    return {
+        entry.asset_id: (
+            entry.n_input,
+            entry.n_before_window,
+            entry.n_after_window,
+            entry.n_dropped,
+            entry.n_aligned,
+        )
+        for entry in aligned.by_asset
+    }
+
+
+def test_a_hole_is_charged_to_the_assets_that_lost_a_date_and_names_the_one_missing_it():
+    portfolio = Portfolio(
+        positions=(
+            _position("AAPL", ["2026-01-02", "2026-01-05", "2026-01-06"], [0.01, -0.30, 0.03]),
+            _position("MSFT", ["2026-01-02", "2026-01-06"], [0.02, 0.00]),
+        )
+    )
+
+    aligned = align_returns(portfolio)
+
+    # (n_input, before window, after window, dropped by intersection, aligned)
+    assert _accounting(aligned) == {"AAPL": (3, 0, 0, 1, 2), "MSFT": (2, 0, 0, 0, 2)}
+    assert aligned.missing_assets == {date(2026, 1, 5): ("MSFT",)}
+
+
+def test_ragged_edges_are_charged_to_the_window_not_to_the_intersection():
+    portfolio = Portfolio(
+        positions=(
+            _position(
+                "AAPL",
+                ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07"],
+                [0.01, -0.02, 0.03, 0.04],
+            ),
+            _position("MSFT", ["2026-01-05", "2026-01-06"], [0.02, -0.01]),
+        )
+    )
+
+    aligned = align_returns(portfolio)
+
+    assert _accounting(aligned) == {"AAPL": (4, 1, 1, 0, 2), "MSFT": (2, 0, 0, 0, 2)}
+    assert aligned.missing_assets == {}
+
+
+def test_a_date_missing_from_several_assets_names_all_of_them():
+    portfolio = Portfolio(
+        positions=(
+            _position("AAA", ["2026-01-02", "2026-01-05", "2026-01-06"], [0.01, 0.02, 0.03]),
+            _position("BBB", ["2026-01-02", "2026-01-06"], [0.01, 0.03]),
+            _position("CCC", ["2026-01-02", "2026-01-06"], [0.01, 0.03]),
+        )
+    )
+
+    aligned = align_returns(portfolio)
+
+    assert aligned.missing_assets == {date(2026, 1, 5): ("BBB", "CCC")}
+    assert _accounting(aligned)["AAA"] == (3, 0, 0, 1, 2)
+
+
+def test_an_explicit_window_is_charged_per_asset_too():
+    portfolio = Portfolio(
+        positions=(
+            _position(
+                "AAPL",
+                ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07"],
+                [0.01, -0.02, 0.03, 0.04],
+            ),
+            _position(
+                "MSFT",
+                ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07"],
+                [0.02, -0.01, 0.00, 0.01],
+            ),
+        )
+    )
+
+    aligned = align_returns(portfolio, start=date(2026, 1, 5), end=date(2026, 1, 6))
+
+    assert _accounting(aligned) == {"AAPL": (4, 1, 1, 0, 2), "MSFT": (4, 1, 1, 0, 2)}
+
+
+def test_every_submitted_observation_is_accounted_for_across_a_seeded_sweep():
+    """n_input == before + after + dropped + aligned for every asset, and the
+    missing-asset map agrees with dropped_dates, over random calendars."""
+    calendar = pd.bdate_range("2025-01-01", periods=120)
+    for case in range(40):
+        rng = np.random.default_rng(500 + case)
+        positions = []
+        for asset in ("AAA", "BBB", "CCC", "DDD"):
+            first = int(rng.integers(0, 15))
+            last = int(rng.integers(105, 120))
+            kept = [day for day in calendar[first:last] if rng.random() > 0.05]
+            positions.append(
+                _position(asset, [str(day.date()) for day in kept], [0.01] * len(kept))
+            )
+        aligned = align_returns(Portfolio(positions=tuple(positions)))
+
+        for entry in aligned.by_asset:
+            parts = entry.n_before_window + entry.n_after_window + entry.n_dropped
+            assert entry.n_input == parts + entry.n_aligned
+            assert entry.n_aligned == aligned.n_observations
+        assert set(aligned.missing_assets) == set(aligned.dropped_dates)
+        assert all(aligned.missing_assets.values())
