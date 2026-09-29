@@ -51,6 +51,7 @@ from quant_risk_ai.risk.stats_utils import (
     sample_normal,
     scale_to_horizon,
     signed_loss_magnitude,
+    tail_sample_diagnostics,
     validate_alpha,
     validate_parametric_sample_size,
     validate_position_value,
@@ -115,6 +116,7 @@ def monte_carlo_var(
             "return_method": asset_returns.method.value,
             "n_simulations": n_simulations,
             "seed": seed,
+            **tail_sample_diagnostics(n_simulations, alpha),
         },
     )
 
@@ -243,7 +245,8 @@ def portfolio_monte_carlo_var(
         n_observations=aggregate.alignment.n_observations,
         asset_ids=list(portfolio.asset_ids),
         currency=portfolio.currency,
-        metadata=monte_carlo_portfolio_metadata(
-            aggregate, portfolio, estimate, n_simulations, seed
-        ),
+        metadata={
+            **monte_carlo_portfolio_metadata(aggregate, portfolio, estimate, n_simulations, seed),
+            **tail_sample_diagnostics(n_simulations, alpha),
+        },
     )

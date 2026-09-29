@@ -429,3 +429,16 @@ def test_sample_size_is_checked_after_alignment_not_before():
 
     with pytest.raises(InsufficientSampleSizeError, match="got 61"):
         portfolio_historical_var(portfolio, alpha=0.99)
+
+
+def test_var_reports_the_same_tail_diagnostics_as_v1_at_k1():
+    series = _series("AAPL", _random_values(250, seed=90))
+    portfolio = Portfolio(positions=(Position(series=series, notional=1_000.0),))
+
+    v1 = historical_var(series, alpha=0.99, position_value=1_000.0)
+    k1 = portfolio_historical_var(portfolio, alpha=0.99)
+
+    for key in ("return_method", "expected_tail_observations", "sparse_tail"):
+        assert k1.metadata[key] == v1.metadata[key], key
+    assert v1.metadata["expected_tail_observations"] == 2.5
+    assert v1.metadata["sparse_tail"] is True

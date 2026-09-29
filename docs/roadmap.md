@@ -80,6 +80,12 @@ behavior, which callers may notice:
   and parsing costs ~800 bytes of Python objects per JSON observation,
   about 14x the body. No legitimate single-asset request comes near
   either limit.
+- **Additive metadata — tail diagnostics on VaR.** Historical and Monte
+  Carlo VaR (v1 and portfolio) now report `expected_tail_observations` and
+  `sparse_tail` in `metadata`, as ES already did: `n × (1 - alpha)` over
+  real observations for historical, over simulations for Monte Carlo. No
+  figure changes. `/explain` renders the full metadata into its prompt, so
+  VaR explanations now see these two values too, exactly as ES ones did.
 - **Known limitation — no short positions.** Portfolio positions must have
   a non-negative notional; a negative one raises `InvalidParameterError`
   naming the asset. Supporting shorts means revisiting the historical

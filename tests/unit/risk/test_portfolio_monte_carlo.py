@@ -446,3 +446,15 @@ def test_horizon_scaling_applies():
     )
 
     assert four_day.value == pytest.approx(one_day.value * 2.0)
+
+
+def test_var_reports_the_same_tail_diagnostics_as_v1_at_k1():
+    series = _series("AAPL", _random(300, seed=91))
+    portfolio = Portfolio(positions=(Position(series=series, notional=1_000.0),))
+
+    v1 = monte_carlo_var(series, alpha=0.99, position_value=1_000.0, seed=SEED, n_simulations=N_SIM)
+    k1 = portfolio_monte_carlo_var(portfolio, alpha=0.99, seed=SEED, n_simulations=N_SIM)
+
+    for key in ("n_simulations", "seed", "expected_tail_observations", "sparse_tail"):
+        assert k1.metadata[key] == v1.metadata[key], key
+    assert v1.metadata["expected_tail_observations"] == 200.0

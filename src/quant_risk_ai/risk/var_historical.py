@@ -21,6 +21,7 @@ from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 from quant_risk_ai.risk.stats_utils import (
     scale_to_horizon,
     signed_loss_magnitude,
+    tail_sample_diagnostics,
     validate_alpha,
     validate_position_value,
     validate_sample_size,
@@ -68,7 +69,10 @@ def historical_var(
         n_observations=len(returns),
         asset_ids=[asset_returns.asset_id],
         currency=asset_returns.currency,
-        metadata={"return_method": asset_returns.method.value},
+        metadata={
+            "return_method": asset_returns.method.value,
+            **tail_sample_diagnostics(len(returns), alpha),
+        },
     )
 
 
@@ -128,5 +132,8 @@ def portfolio_historical_var(
         n_observations=len(returns),
         asset_ids=list(portfolio.asset_ids),
         currency=portfolio.currency,
-        metadata=alignment_metadata(aggregate, portfolio),
+        metadata={
+            **alignment_metadata(aggregate, portfolio),
+            **tail_sample_diagnostics(len(returns), alpha),
+        },
     )
