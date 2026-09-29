@@ -12,9 +12,14 @@ from __future__ import annotations
 
 import pandas as pd
 
-from quant_risk_ai.api.schemas import ReturnObservation, ReturnSeriesInput, RiskResultInput
+from quant_risk_ai.api.schemas import (
+    PositionInput,
+    ReturnObservation,
+    ReturnSeriesInput,
+    RiskResultInput,
+)
 from quant_risk_ai.core.exceptions import DataValidationError
-from quant_risk_ai.data.schemas import AssetReturnSeries
+from quant_risk_ai.data.schemas import AssetReturnSeries, Portfolio, Position
 from quant_risk_ai.llm.ollama_client import OllamaClient, create_default_client
 from quant_risk_ai.risk.results import RiskResult
 
@@ -46,6 +51,19 @@ def build_asset_return_series(series_input: ReturnSeriesInput) -> AssetReturnSer
         returns=returns,
         method=series_input.method,
         currency=series_input.currency,
+    )
+
+
+def build_portfolio(positions: list[PositionInput]) -> Portfolio:
+    """Adapt a request's positions into the risk engine's Portfolio, series
+    by series through the same adapter v1 uses. Portfolio's own validation
+    (duplicate asset_ids, negative notionals, mixed currency or return
+    method) applies unchanged."""
+    return Portfolio(
+        positions=tuple(
+            Position(series=build_asset_return_series(position.series), notional=position.notional)
+            for position in positions
+        )
     )
 
 

@@ -62,6 +62,24 @@ class SingularCovarianceError(QuantRiskAIError):
     """
 
 
+class PortfolioMethodsFailedError(QuantRiskAIError):
+    """One or more of the (method, metric) pairs requested together failed.
+
+    All or nothing: no result is returned when any pair fails, so a report
+    can never go out silently missing a method. Every pair is still
+    computed, so the error lists *all* failures, not just the first, and
+    names the pairs that succeeded but were withheld — a caller whose Monte
+    Carlo hit a singular covariance learns that dropping it returns the
+    rest.
+    """
+
+    def __init__(self, failures: list[dict[str, str]], withheld: list[dict[str, str]]):
+        self.failures = failures
+        self.withheld = withheld
+        names = ", ".join(f"{f['method']}/{f['metric']}" for f in failures)
+        super().__init__(f"{len(failures)} requested calculation(s) failed: {names}")
+
+
 class LLMError(QuantRiskAIError):
     """Base class for LLM-layer (quant_risk_ai.llm) failures. Split into
     subclasses below rather than used directly, so api/main.py can map each

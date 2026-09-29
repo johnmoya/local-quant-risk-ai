@@ -38,10 +38,11 @@ from fastapi.responses import JSONResponse, Response
 
 from quant_risk_ai import config
 from quant_risk_ai.api.body_limit import BodySizeLimitMiddleware
-from quant_risk_ai.api.routers import backtest, expected_shortfall, explain, var
+from quant_risk_ai.api.routers import backtest, expected_shortfall, explain, portfolio, var
 from quant_risk_ai.core.exceptions import (
     LLMUnavailableError,
     NumericConsistencyError,
+    PortfolioMethodsFailedError,
     QuantRiskAIError,
 )
 from quant_risk_ai.core.logging import configure_logging
@@ -52,8 +53,8 @@ logger = logging.getLogger(__name__)
 app = FastAPI(
     title="Local Quant Risk AI",
     description=(
-        "Single-asset VaR, Expected Shortfall, VaR backtesting, and "
-        "Ollama-backed natural-language explanations."
+        "Single-asset and multi-asset portfolio VaR and Expected Shortfall, "
+        "VaR backtesting, and Ollama-backed natural-language explanations."
     ),
 )
 
@@ -65,6 +66,7 @@ app.include_router(var.router)
 app.include_router(expected_shortfall.router)
 app.include_router(backtest.router)
 app.include_router(explain.router)
+app.include_router(portfolio.router)
 
 
 @app.middleware("http")
@@ -129,6 +131,22 @@ async def _numeric_consistency_handler(
         extra={"path": request.url.path, "detail": str(exc)},
     )
     return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+@app.exception_handler(PortfolioMethodsFailedError)
+async def _portfolio_methods_failed_handler(
+    request: Request, exc: PortfolioMethodsFailedError
+) -> JSONResponse:
+    # Same 422 as any input error, but structured: which pairs failed and
+    # why, and which succeeded but were withheld (all or nothing).
+    logger.info(
+        "request rejected: requested calculations failed",
+        extra={"path": request.url.path, "detail": str(exc), "failures": exc.failures},
+    )
+    return JSONResponse(
+        status_code=422,
+        content={"detail": str(exc), "failures": exc.failures, "withheld": exc.withheld},
+    )
 
 
 @app.exception_handler(QuantRiskAIError)
