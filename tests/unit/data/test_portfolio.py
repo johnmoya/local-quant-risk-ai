@@ -29,9 +29,7 @@ def test_zero_notional_is_allowed():
 
 @pytest.mark.parametrize("bad_notional", [-1.0, -1_000_000.0])
 def test_negative_notional_is_rejected_as_a_known_limitation(bad_notional):
-    with pytest.raises(
-        InvalidParameterError, match="short positions are not supported.*after M13"
-    ):
+    with pytest.raises(InvalidParameterError, match="short positions are not supported.*after M13"):
         _position("AAPL", bad_notional)
 
 
