@@ -53,6 +53,17 @@ MAX_REQUEST_BODY_BYTES: int = int(
     os.environ.get("QUANT_RISK_AI_MAX_REQUEST_BODY_BYTES", str(16 * 1024 * 1024))
 )
 
+# Portfolio request limits (M11.5). k x n_simulations is capped separately
+# from n_simulations because Monte Carlo memory scales with the product:
+# 1e7 cells is ~240 MB at peak (measured), whatever the split. Assets and
+# observations bound the parse: 50 x 5,000 observations is ~14 MB of JSON
+# and ~200 MB of parsed objects, which also fits under the body limit.
+MAX_PORTFOLIO_ASSETS: int = int(os.environ.get("QUANT_RISK_AI_MAX_PORTFOLIO_ASSETS", "50"))
+MAX_OBSERVATIONS_PER_ASSET: int = int(
+    os.environ.get("QUANT_RISK_AI_MAX_OBSERVATIONS_PER_ASSET", "5000")
+)
+MAX_SIMULATION_CELLS: int = int(os.environ.get("QUANT_RISK_AI_MAX_SIMULATION_CELLS", "10000000"))
+
 # M10: structured logging (core/logging.py). A plain string, not a
 # logging.Level int, so it stays a simple env-var round trip; core/logging.py
 # owns turning it into something logging.Logger.setLevel accepts.
