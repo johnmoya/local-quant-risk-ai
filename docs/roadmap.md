@@ -68,6 +68,11 @@ behavior, which callers may notice:
   (default `5`). An unreachable Ollama now fails in 5s instead of after
   the full 180s read budget, and the 503's `detail` says which phase
   timed out.
+- **Known limitation — no short positions.** Portfolio positions must have
+  a non-negative notional; a negative one raises `InvalidParameterError`
+  naming the asset. Supporting shorts means revisiting the historical
+  method's return-space weights (they degenerate for a market-neutral
+  book), so it is re-evaluated after M13 rather than folded into M11.
 - **Test/runtime dependencies.** `httpx2` joins the `dev` extra for
   Starlette's `TestClient`; Starlette moves 1.6.0 → 1.7.0. The suite runs
   warning-free under `pytest -W error`.

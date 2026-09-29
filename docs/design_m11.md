@@ -11,7 +11,7 @@ against `v1.0.2`, which is the frozen single-asset baseline
 |---|---|
 | Portfolio type | Compose several `AssetReturnSeries`; do not extend it |
 | Holdings | Notionals (currency per asset); weights derived, reported, never required as input |
-| Short positions | **Out of scope for M11**: `notional >= 0` for every position and `sum(notionals) > 0` |
+| Short positions | **Not supported: a known limitation, re-evaluated after M13.** `notional >= 0` for every position and `sum(notionals) > 0`; a negative notional raises `InvalidParameterError` naming the asset |
 | Time dimension | Static snapshot as of `as_of`; no rebalancing, no time-varying holdings |
 | Position order | Canonical: sorted by `asset_id` at construction, everywhere including `metadata`. Input order is **not** preserved |
 | Alignment | Common window required, then intersection of dates within it |
@@ -474,6 +474,9 @@ Carlo, where a legitimate violation would otherwise fail the suite.
 
 Each step is independently testable and leaves CI green.
 
-**Explicitly out of scope for M11**: short positions, multi-currency
+**Explicitly out of scope for M11**: short positions (decided after M11.4:
+they stay out, `Position` keeps rejecting them with an explicit error, and
+the question is re-evaluated after M13, together with the historical
+method's return-space weights described in the M11.1 amendment), multi-currency
 portfolios, rebalancing or time-varying holdings, factor models (M12),
 shrinkage (decided at M12), EWMA covariance (M13).

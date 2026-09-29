@@ -73,8 +73,9 @@ class Position:
 
     `notional` is a currency amount, in the series' own currency, and is the
     same quantity v1 calls `position_value` — a single-position portfolio is
-    the v1 case spelled out. Short positions (negative notionals) are out of
-    scope for M11; zero is allowed, as it already is for `position_value`.
+    the v1 case spelled out. Short positions (negative notionals) are a known
+    limitation, rejected with an explicit error and re-evaluated after M13;
+    zero is allowed, as it already is for `position_value`.
     """
 
     series: AssetReturnSeries
@@ -92,8 +93,8 @@ class Position:
         if self.notional < 0:
             raise InvalidParameterError(
                 f"notional for asset {self.asset_id!r} must be non-negative, got "
-                f"{self.notional}: short positions are out of scope for M11 "
-                f"(see docs/design_m11.md)"
+                f"{self.notional}: short positions are not supported, a known "
+                f"limitation to be re-evaluated after M13 (see docs/design_m11.md)"
             )
 
 
