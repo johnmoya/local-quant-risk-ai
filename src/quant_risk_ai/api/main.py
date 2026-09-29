@@ -30,10 +30,14 @@ whatever ASGI/Starlette's own default error page would otherwise produce
 from __future__ import annotations
 
 import logging
+import math
 import time
 from collections.abc import Awaitable, Callable
+from typing import Any
 
 from fastapi import FastAPI, Request
+from fastapi.encoders import jsonable_encoder
+from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
 from quant_risk_ai import config
@@ -131,6 +135,30 @@ async def _numeric_consistency_handler(
         extra={"path": request.url.path, "detail": str(exc)},
     )
     return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+def _json_safe(value: Any) -> Any:
+    if isinstance(value, float) and not math.isfinite(value):
+        return repr(value)
+    if isinstance(value, dict):
+        return {key: _json_safe(item) for key, item in value.items()}
+    if isinstance(value, list | tuple):
+        return [_json_safe(item) for item in value]
+    return value
+
+
+@app.exception_handler(RequestValidationError)
+async def _request_validation_handler(
+    request: Request, exc: RequestValidationError
+) -> JSONResponse:
+    # FastAPI's default handler echoes each offending value as `input`, and
+    # when that value is the inf or nan a model just rejected, serialising
+    # the 422 itself fails (Starlette writes JSON with allow_nan=False) and
+    # the client gets a 500 instead. Same 422 body otherwise; non-finite
+    # floats are reported as the strings 'inf', '-inf' or 'nan'.
+    return JSONResponse(
+        status_code=422, content={"detail": _json_safe(jsonable_encoder(exc.errors()))}
+    )
 
 
 @app.exception_handler(PortfolioMethodsFailedError)

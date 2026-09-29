@@ -135,6 +135,14 @@ Known cases, each now pinned by a test:
   `None` → `null`, and the file is written with `allow_nan=False`:
   `annualised_volatility` in `research/rolling_backtest.py`,
   `test_the_summary_is_strictly_valid_json`.
+- **A 422 that rejected inf became a 500** (M11.5). The portfolio request
+  models reject non-finite values at the edge, and FastAPI's default
+  validation handler echoes the offending value as `input` — so the error
+  response carried the very `inf` it rejected and could not be serialised.
+  Now a handler in `api/main.py` reports non-finite inputs as the strings
+  `'inf'`, `'-inf'`, `'nan'`: `tests/unit/api/test_validation_errors.py`.
+  The lesson generalises: an error path that echoes input inherits the
+  input's problems.
 - **Covariance condition number of a singular matrix is `inf`** (M11.2).
   Reported as `float | None` instead: `risk/covariance.py`, with a test
   serialising the degenerate case under `allow_nan=False`.
