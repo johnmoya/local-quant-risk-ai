@@ -189,6 +189,106 @@ a separate call rather than an `explanation` field bolted onto the
 `/var`/`/expected-shortfall` responses: an Ollama outage never blocks the
 deterministic endpoints.
 
+## `POST /portfolio/*` (M11.5)
+
+Multi-asset VaR and ES. `/portfolio/var/{historical,parametric,montecarlo}`
+and `/portfolio/expected-shortfall` mirror the v1 endpoints above, taking
+`positions` instead of one `series` and returning the same `RiskResult`
+shape. `/portfolio/risk` computes several methods and metrics over a
+single upload.
+
+```json
+{
+  "positions": [
+    {"series": {"asset_id": "AAPL", "observations": [{"date": "2024-01-02", "value": -0.012}],
+                "method": "log", "currency": "USD"},
+     "notional": 600000},
+    {"series": {"asset_id": "MSFT", "observations": ["..."]}, "notional": 400000}
+  ],
+  "alpha": 0.99, "horizon_days": 1, "as_of": null, "start": null, "end": null,
+  "seed": 42, "n_simulations": 100000
+}
+```
+
+- **Returns only**, in the v1 wire format (the series model is v1's, by
+  inheritance). Each position's `asset_id` is inside its series; its
+  `notional` is beside it. `Portfolio` validation applies: distinct
+  `asset_id`s, one currency and one return method, non-negative
+  notionals (short positions are a known limitation).
+- `seed` is required for Monte Carlo (`/var/montecarlo`, or `method` /
+  `methods` including `monte_carlo`); `/portfolio/expected-shortfall`
+  takes `method` like v1; `/portfolio/risk` takes `methods` (distinct,
+  at least one) and `metrics` (default `["VaR", "ES"]`).
+- `start`/`end` request an explicit alignment window; omitted, the common
+  window of all assets is derived.
+
+**Non-finite values are rejected at the edge.** `1e400`, `NaN`,
+`Infinity` and `-Infinity` in any numeric or date field — series values,
+notionals, `alpha`, `horizon_days`, `seed`, `n_simulations`, `start`,
+`end` — are a 422 whose `loc` names the field, before any computation.
+The rejected value is echoed as the string `'inf'`, `'-inf'` or `'nan'`.
+
+**Limits** (all configurable; see "Request defaults" below):
+
+| Limit | Default | Response |
+|---|---|---|
+| Request body (every endpoint) | 16 MiB | **413**, before parsing |
+| Positions | 50 | 422 at `positions` |
+| Observations per asset | 5,000 | 422 at that asset's `observations` |
+| `n_simulations` (v1 and portfolio) | 1,000,000 | 422 at `n_simulations` |
+| positions × `n_simulations` | 10,000,000 | 422 naming both factors |
+
+The last one exists because Monte Carlo memory scales with the product
+(~24 bytes per simulated cell at peak). Measured worst case the limits
+allow — 50 × 5,000 observations, all methods and metrics, 1e7 cells
+through `/portfolio/risk` — is about 490 MB on top of a ~155 MB process.
+
+**Alignment is reported, never silent.** Dates are intersected (never
+filled), and every result's `metadata` accounts for each asset's
+observations:
+
+```json
+"alignment_by_asset": {"AAA": {"n_input": 40, "n_before_window": 2, "n_after_window": 0,
+                               "n_dropped": 1, "n_aligned": 37}},
+"dropped_dates": ["2020-01-11"],
+"dropped_dates_missing_assets": {"2020-01-11": ["BBB"]}
+```
+
+`n_input` always equals the sum of the other four fields. `n_observations`
+is the aligned count.
+
+**Other metadata.** Parametric and Monte Carlo add the covariance
+diagnostics (`covariance_condition_number`, `covariance_ill_conditioned`,
+`observations_per_asset`, `sparse_covariance_sample`); historical does not
+estimate a covariance matrix and does not report one. ES adds `tail_size`;
+historical and Monte Carlo VaR and ES add `expected_tail_observations` and
+`sparse_tail`; Monte Carlo adds `seed`, `n_simulations` and
+`random_draw_layout`. Every result carries `notionals` and `weights`.
+
+**`/portfolio/risk` is all or nothing.** Every requested pair is
+computed; if any fails, no result is returned:
+
+```json
+{"detail": "2 requested calculation(s) failed: monte_carlo/VaR, monte_carlo/ES",
+ "failures": [{"method": "monte_carlo", "metric": "VaR", "error": "SingularCovarianceError",
+               "detail": "covariance matrix for ['AAA', 'FLAT'] is not positive definite ..."}],
+ "withheld": [{"method": "historical", "metric": "VaR"}, {"method": "parametric", "metric": "VaR"}]}
+```
+
+`withheld` lists what did succeed, so dropping the failing method returns
+the rest. Failures common to every pair (an invalid portfolio, `alpha`
+out of range, series that cannot be aligned) are an ordinary 422 instead.
+Results come in request order, methods outer and metrics inner, and are
+identical to what the single-method endpoints return; Monte Carlo VaR and
+ES share the seed, so ES ≥ VaR exactly.
+
+**A one-position portfolio reproduces v1**: historical exactly, and
+parametric and Monte Carlo within 16 ulps (the covariance matrix's sigma
+differs from pandas' `std` in the last bits; see `docs/design_m11.md`).
+
+There is no `/portfolio/backtest/*`: `/backtest/*` already accepts any VaR
+and realised-return series, portfolio ones included.
+
 ## Error responses (all endpoints)
 
 `api/main.py` maps every `QuantRiskAIError` subclass to a JSON body of
@@ -196,7 +296,9 @@ the form `{"detail": "<message>"}`:
 
 | Exception | HTTP status |
 |---|---|
-| `DataValidationError`, `InsufficientDataError`, `InsufficientSampleSizeError`, `InvalidParameterError` | 422 |
+| `DataValidationError`, `InsufficientDataError`, `InsufficientSampleSizeError`, `InvalidParameterError`, `SingularCovarianceError` | 422 |
+| `PortfolioMethodsFailedError` (`/portfolio/risk` only) | 422, with `failures` and `withheld` |
+| request body over the limit | 413 |
 | `LLMUnavailableError` (`/explain` only) | 503 |
 | `NumericConsistencyError` (`/explain` only) | 502 |
 | anything not a `QuantRiskAIError` | 500, body `{"detail": "Internal server error"}` — a genuine bug, logged at ERROR with a full traceback (see "Logging" below) rather than left to leak framework-specific error output |
@@ -229,3 +331,13 @@ Docker" in the root `README.md`:
 | `horizon_days` | `1` | `QUANT_RISK_AI_DEFAULT_HORIZON_DAYS` |
 | `n_simulations` | `100000` | `QUANT_RISK_AI_DEFAULT_N_SIMULATIONS` |
 | `test_confidence` | `0.95` | `QUANT_RISK_AI_DEFAULT_TEST_CONFIDENCE` |
+
+The request limits are configured the same way:
+
+| Limit | Default | Env var |
+|---|---|---|
+| Request body | `16777216` (16 MiB) | `QUANT_RISK_AI_MAX_REQUEST_BODY_BYTES` |
+| `n_simulations` | `1000000` | `QUANT_RISK_AI_MAX_N_SIMULATIONS` |
+| Portfolio positions | `50` | `QUANT_RISK_AI_MAX_PORTFOLIO_ASSETS` |
+| Observations per asset | `5000` | `QUANT_RISK_AI_MAX_OBSERVATIONS_PER_ASSET` |
+| positions × `n_simulations` | `10000000` | `QUANT_RISK_AI_MAX_SIMULATION_CELLS` |

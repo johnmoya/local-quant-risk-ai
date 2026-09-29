@@ -393,6 +393,27 @@ assumed: exact scale-equivariance of the empirical quantile, and a
 bit-identical Monte Carlo draw at `k = 1`. Asserting approximate equality
 would quietly permit a real regression in the v1 path.
 
+### Amendment (M11.5): what shipped
+
+- **Equality per method, not across the board.** Historical is exact
+  (`==`), as planned. Parametric and Monte Carlo are bounded by
+  `K1_MAX_ULPS` (16), because M11.3 and M11.4 showed the covariance
+  matrix's sigma cannot reproduce pandas' `std` bit for bit; the draws are
+  identical, sigma is not. The endpoint tests compare the value and every
+  metadata field both results carry, not the whole dict.
+- **No `/portfolio/backtest/*`.** `/backtest/*` takes any VaR and
+  realised-return series already; a portfolio variant would duplicate it.
+- **`/portfolio/risk`**, not planned above: several methods and metrics
+  over one upload, all or nothing (see `docs/api_reference.md`).
+- **Limits and edge validation** that the plan did not have: a 413 body
+  cap on every endpoint, caps on positions, observations per asset,
+  `n_simulations` and positions × `n_simulations`, and `allow_inf_nan=False`
+  on every portfolio request model. The last one exposed a real bug —
+  FastAPI's 422 echoed the rejected `inf` and became a 500 — recorded in
+  `docs/architecture.md`.
+- **Per-asset alignment accounting** in `data/alignment.py`, so a
+  response says which asset lost which observations, and why.
+
 ## 7. LLM layer
 
 The expected-number pool must grow to include weights and notionals;

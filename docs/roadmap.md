@@ -80,6 +80,11 @@ behavior, which callers may notice:
   and parsing costs ~800 bytes of Python objects per JSON observation,
   about 14x the body. No legitimate single-asset request comes near
   either limit.
+- **New — `/portfolio/*` endpoints (M11.5).** Multi-asset VaR and ES
+  mirroring the v1 endpoints, plus `/portfolio/risk` (several methods and
+  metrics, all or nothing). Non-finite values are rejected at the edge
+  with a 422 at the field; alignment is reported per asset. See
+  `docs/api_reference.md`.
 - **Additive metadata — tail diagnostics on VaR.** Historical and Monte
   Carlo VaR (v1 and portfolio) now report `expected_tail_observations` and
   `sparse_tail` in `metadata`, as ES already did: `n × (1 - alpha)` over
@@ -112,6 +117,21 @@ independence test because none models conditional volatility.
 
 ### Maintenance backlog
 
+- **The `api` container has no memory limit.** `docker-compose.yml` sets
+  none, so the container can grow until the WSL VM (23 GB on the
+  development host) runs out, taking every other container with it.
+  Measured (2026-09-29): the API process sits at ~155 MB after import;
+  the worst single request the M11.5 limits allow — a body at the 16 MiB
+  cap buffered raw, 50 × 5,000 observations parsed (~200 MB), and 1e7
+  Monte Carlo cells (~240 MB) through `/portfolio/risk` — adds ~490 MB,
+  peaking at ~660 MB. Endpoints are synchronous and run in AnyIO's
+  40-thread pool, so concurrent worst cases stack: 40 of them would need
+  ~20 GB. Proposed: `mem_limit: 2g` on `api` (the baseline plus three
+  concurrent worst cases), with `restart: unless-stopped` so an OOM kill
+  restarts the container instead of leaving it down, and optionally
+  uvicorn's `--limit-concurrency` to answer 503 before memory runs out.
+  Not applied: it changes how the stack fails under load, which is a
+  deployment decision.
 - **`/explain` timeout of 2026-09-16: not reproduced; closed with an open
   hypothesis.** Two consecutive calls against a freshly started stack
   returned `503 Ollama request failed: timed out` after 61.5s each (then
