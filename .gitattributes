@@ -1,0 +1,4 @@
+# LF everywhere, regardless of the editor or OS that wrote the file: git
+# normalizes on commit, so a CRLF working copy can never reach the history.
+* text=auto eol=lf
+*.png binary
