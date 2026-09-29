@@ -87,3 +87,26 @@ def test_explain_invalid_risk_result_returns_422(client):
     response = client.post("/explain", json=payload)
 
     assert response.status_code == 422
+
+
+def test_explain_multi_asset_result_is_refused_before_calling_ollama(client):
+    # Temporary guard until M11.6 (see api/routers/explain.py).
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={"response": "irrelevant"})
+
+    http_client = httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="http://ollama.local"
+    )
+    app.dependency_overrides[get_ollama_client] = lambda: OllamaClient(
+        model="qwen3:8b", client=http_client
+    )
+    payload = {**_VALID_RESULT, "asset_ids": ["AAPL", "MSFT"]}
+
+    response = client.post("/explain", json=payload)
+
+    assert response.status_code == 422
+    assert "multi-asset" in response.json()["detail"]
+    assert calls == []
