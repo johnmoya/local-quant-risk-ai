@@ -85,6 +85,14 @@ behavior, which callers may notice:
   metrics, all or nothing). Non-finite values are rejected at the edge
   with a 422 at the field; alignment is reported per asset. See
   `docs/api_reference.md`.
+- **Deployment — the `api` container is memory-capped.**
+  `docker-compose.yml` sets `mem_limit: 2g`, `memswap_limit: 2g` (no swap
+  on top) and `restart: unless-stopped` on `api`. Measured: ~155 MB after
+  import, and the worst single request the limits allow adds ~490 MB
+  (660 MB peak), so 2 GiB holds about three at once. Past that the kernel
+  OOM-kills the container and Docker restarts it, instead of the process
+  exhausting the host or the WSL VM. `ollama` is not capped: its footprint
+  is the model's (~6 GB for Qwen3 8B on CPU).
 - **Additive metadata — tail diagnostics on VaR.** Historical and Monte
   Carlo VaR (v1 and portfolio) now report `expected_tail_observations` and
   `sparse_tail` in `metadata`, as ES already did: `n × (1 - alpha)` over
@@ -117,21 +125,14 @@ independence test because none models conditional volatility.
 
 ### Maintenance backlog
 
-- **The `api` container has no memory limit.** `docker-compose.yml` sets
-  none, so the container can grow until the WSL VM (23 GB on the
-  development host) runs out, taking every other container with it.
-  Measured (2026-09-29): the API process sits at ~155 MB after import;
-  the worst single request the M11.5 limits allow — a body at the 16 MiB
-  cap buffered raw, 50 × 5,000 observations parsed (~200 MB), and 1e7
-  Monte Carlo cells (~240 MB) through `/portfolio/risk` — adds ~490 MB,
-  peaking at ~660 MB. Endpoints are synchronous and run in AnyIO's
-  40-thread pool, so concurrent worst cases stack: 40 of them would need
-  ~20 GB. Proposed: `mem_limit: 2g` on `api` (the baseline plus three
-  concurrent worst cases), with `restart: unless-stopped` so an OOM kill
-  restarts the container instead of leaving it down, and optionally
-  uvicorn's `--limit-concurrency` to answer 503 before memory runs out.
-  Not applied: it changes how the stack fails under load, which is a
-  deployment decision.
+- **Concurrency is bounded by memory, not by admission.** The `api`
+  container is capped at 2 GiB (see the v1.1.0 notes), which holds about
+  three worst-case requests at once; endpoints run in AnyIO's 40-thread
+  pool, so a burst of large requests ends in an OOM kill and a restart,
+  dropping every request in flight, rather than in a 503 for the excess.
+  uvicorn's `--limit-concurrency` would turn that into early 503s; it is
+  deliberately not applied for now, since for a local, single-user tool a
+  restart is acceptable, and the right bound depends on the deployment.
 - **`/explain` timeout of 2026-09-16: not reproduced; closed with an open
   hypothesis.** Two consecutive calls against a freshly started stack
   returned `503 Ollama request failed: timed out` after 61.5s each (then

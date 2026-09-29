@@ -122,6 +122,14 @@ is the one exception, fixed to the `ollama` service name in
 `docker-compose.yml` regardless of what's in `.env`, since `localhost` has
 no meaning inside the `api` container.
 
+**Memory.** `api` is capped at 2 GiB with no extra swap
+(`mem_limit`/`memswap_limit`) and restarts itself (`restart:
+unless-stopped`). The process needs ~155 MB, and the largest request the
+API accepts adds ~490 MB, so the cap holds about three of those at once;
+beyond it the container is OOM-killed and restarted rather than exhausting
+the host. `ollama` is not capped, since its footprint is the model's. The
+request limits behind those figures are listed in `docs/api_reference.md`.
+
 ## Explanations and hardware
 
 The numeric endpoints (`/var`, `/expected-shortfall`, `/backtest`) are
