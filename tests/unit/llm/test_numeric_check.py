@@ -83,3 +83,50 @@ def test_recomputed_value_is_rejected():
 
     with pytest.raises(NumericConsistencyError):
         verify_numeric_consistency(text, _RESULT)
+
+
+# --- dates are compared whole (v1.1.0) --------------------------------------
+#
+# as_of is 2026-08-21. Until v1.1.0 its year, month and day went into the
+# pool as loose numbers, so any invented 21, 8 or 2026 passed.
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        "The VaR is 1234.56 as of 2026-08-21.",
+        "As of August 21, 2026, the VaR is 1234.56.",
+        "As of Aug. 21st, 2026, the VaR is 1234.56.",
+        "As of 21 August 2026, the VaR is 1234.56.",
+        "as of august 21 2026 the VaR is 1234.56.",
+    ],
+)
+def test_the_as_of_date_passes_whole_in_iso_or_written_form(text):
+    verify_numeric_consistency(text, _RESULT)
+
+
+@pytest.mark.parametrize(
+    ("text", "invented"),
+    [
+        ("Over the last 21 sessions the VaR is 1234.56.", "21"),
+        ("The VaR is 1234.56 across 8 scenarios.", "8"),
+        ("The VaR is 1234.56 for 2026.", "2026"),
+    ],
+)
+def test_a_loose_part_of_the_as_of_date_is_rejected(text, invented):
+    with pytest.raises(NumericConsistencyError, match=invented):
+        verify_numeric_consistency(text, _RESULT)
+
+
+@pytest.mark.parametrize(
+    ("text", "reported"),
+    [
+        ("The VaR is 1234.56 as of 2026-08-22.", "2026-08-22"),
+        ("The VaR is 1234.56 as of August 22, 2026.", "2026-08-22"),
+        ("The VaR is 1234.56 as of 2026-13-45.", "2026-13-45"),
+        ("The VaR is 1234.56 as of February 30, 2026.", "February 30, 2026"),
+    ],
+)
+def test_a_date_other_than_as_of_is_rejected_whole(text, reported):
+    with pytest.raises(NumericConsistencyError, match=f"dates.*{reported}"):
+        verify_numeric_consistency(text, _RESULT)
