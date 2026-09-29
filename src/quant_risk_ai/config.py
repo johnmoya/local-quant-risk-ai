@@ -42,6 +42,17 @@ OLLAMA_CONNECT_TIMEOUT_SECONDS: float = float(
     os.environ.get("QUANT_RISK_AI_OLLAMA_CONNECT_TIMEOUT_SECONDS", "5")
 )
 
+# Request-size limits (v1.1.0). Monte Carlo's peak memory is ~24 bytes per
+# simulated cell (standard draws, their Cholesky product and the shifted
+# returns coexist), so an unbounded n_simulations is an out-of-memory
+# request: 1e9 would be ~24 GB. Parsing is the other cost, ~800 bytes of
+# Python objects per JSON observation (about 14x the body size), which is
+# why the body is capped before it is parsed, not after.
+MAX_N_SIMULATIONS: int = int(os.environ.get("QUANT_RISK_AI_MAX_N_SIMULATIONS", "1000000"))
+MAX_REQUEST_BODY_BYTES: int = int(
+    os.environ.get("QUANT_RISK_AI_MAX_REQUEST_BODY_BYTES", str(16 * 1024 * 1024))
+)
+
 # M10: structured logging (core/logging.py). A plain string, not a
 # logging.Level int, so it stays a simple env-var round trip; core/logging.py
 # owns turning it into something logging.Logger.setLevel accepts.

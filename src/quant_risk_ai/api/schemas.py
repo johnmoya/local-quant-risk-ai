@@ -57,7 +57,7 @@ class MonteCarloVaRRequest(VaRRequest):
     """
 
     seed: int
-    n_simulations: int = config.DEFAULT_N_SIMULATIONS
+    n_simulations: int = Field(default=config.DEFAULT_N_SIMULATIONS, le=config.MAX_N_SIMULATIONS)
 
 
 class ExpectedShortfallRequest(VaRRequest):
@@ -68,7 +68,7 @@ class ExpectedShortfallRequest(VaRRequest):
 
     method: RiskMethod = RiskMethod.HISTORICAL
     seed: int | None = None
-    n_simulations: int = config.DEFAULT_N_SIMULATIONS
+    n_simulations: int = Field(default=config.DEFAULT_N_SIMULATIONS, le=config.MAX_N_SIMULATIONS)
 
     @model_validator(mode="after")
     def _require_seed_for_monte_carlo(self) -> ExpectedShortfallRequest:

@@ -36,6 +36,8 @@ from collections.abc import Awaitable, Callable
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response
 
+from quant_risk_ai import config
+from quant_risk_ai.api.body_limit import BodySizeLimitMiddleware
 from quant_risk_ai.api.routers import backtest, expected_shortfall, explain, var
 from quant_risk_ai.core.exceptions import (
     LLMUnavailableError,
@@ -54,6 +56,10 @@ app = FastAPI(
         "Ollama-backed natural-language explanations."
     ),
 )
+
+# Registered before the logging middleware below, which makes it the inner
+# one: a rejected body still gets its "request completed" line, with 413.
+app.add_middleware(BodySizeLimitMiddleware, max_bytes=config.MAX_REQUEST_BODY_BYTES)
 
 app.include_router(var.router)
 app.include_router(expected_shortfall.router)

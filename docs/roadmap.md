@@ -68,6 +68,18 @@ behavior, which callers may notice:
   (default `5`). An unreachable Ollama now fails in 5s instead of after
   the full 180s read budget, and the 503's `detail` says which phase
   timed out.
+- **Behavior change — request-size limits, on every endpoint.** A request
+  body over 16 MiB (`QUANT_RISK_AI_MAX_REQUEST_BODY_BYTES`) is refused with
+  **413** before it is parsed: by its `Content-Length` when that is over
+  the limit, otherwise by counting the bytes as they stream in (chunked
+  transfer). `n_simulations` over 1,000,000
+  (`QUANT_RISK_AI_MAX_N_SIMULATIONS`) on `/var/montecarlo` and
+  `/expected-shortfall` is a **422** naming the field. Both used to be
+  unbounded, and both were memory exhaustion waiting to happen: Monte
+  Carlo peaks at ~24 bytes per simulated cell (1e9 simulations ≈ 24 GB),
+  and parsing costs ~800 bytes of Python objects per JSON observation,
+  about 14x the body. No legitimate single-asset request comes near
+  either limit.
 - **Known limitation — no short positions.** Portfolio positions must have
   a non-negative notional; a negative one raises `InvalidParameterError`
   naming the asset. Supporting shorts means revisiting the historical
