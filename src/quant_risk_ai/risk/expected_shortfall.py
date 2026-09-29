@@ -4,6 +4,8 @@ This module gains a function per method as each is implemented:
 - historical_expected_shortfall (M2, below): empirical tail mean.
 - parametric_expected_shortfall (M3, below): closed-form normal ES.
 - monte_carlo_expected_shortfall (M4, below): tail mean over simulated P&L.
+- portfolio_* counterparts of each (M11.1, M11.3, M11.4) for multi-asset
+  portfolios.
 
 All non-negative, same sign convention as VaR (see docs/math_reference.md).
 """
@@ -34,6 +36,10 @@ from quant_risk_ai.risk.stats_utils import (
     validate_position_value,
     validate_sample_size,
     validate_simulation_count,
+)
+from quant_risk_ai.risk.var_monte_carlo import (
+    monte_carlo_portfolio_metadata,
+    simulate_portfolio_returns,
 )
 from quant_risk_ai.risk.var_parametric import portfolio_moments
 
@@ -368,4 +374,71 @@ def monte_carlo_expected_shortfall(
             # simulation count is what controls how thin it is.
             **tail_sample_diagnostics(n_simulations, alpha),
         },
+    )
+
+
+def portfolio_monte_carlo_expected_shortfall(
+    portfolio: Portfolio,
+    *,
+    alpha: float,
+    seed: int,
+    n_simulations: int = DEFAULT_N_SIMULATIONS,
+    horizon_days: int = 1,
+    as_of: date_type | None = None,
+    start: date_type | None = None,
+    end: date_type | None = None,
+    covariance_estimator: CovarianceEstimator = sample_covariance,
+) -> RiskResult:
+    """Monte Carlo Expected Shortfall for a multi-asset portfolio (M11.4).
+
+    The tail mean of the simulated portfolio returns at or below their own
+    (1 - alpha) quantile, drawn exactly as in
+    `var_monte_carlo.portfolio_monte_carlo_var` (see there for the sampling,
+    the k=1 bound against v1 and the singular-matrix behaviour). The same
+    `seed` and `n_simulations` draw the identical sample in both, so
+    ES >= VaR holds exactly.
+
+    The tail is counted in *simulations*, and the non-integer
+    `n * (1 - alpha)` problem the historical method has at n=250 all but
+    vanishes: `np.quantile` puts `floor((n - 1)(1 - alpha)) + 1` draws in
+    the tail, which at the default 100,000 simulations is exactly
+    `n * (1 - alpha)` for alpha 0.95, 0.975, 0.99 and 0.999. An awkward
+    count shifts the result by at most a few 1e-4 relative, 0.02 to 0.1 of a
+    Monte Carlo standard error (measured; see docs/design_m11.md).
+    `tail_size` and the tail diagnostics are reported regardless.
+
+    Raises:
+        Same as `var_monte_carlo.portfolio_monte_carlo_var`.
+    """
+    validate_alpha(alpha)
+    validate_simulation_count(n_simulations, alpha)
+    aggregate = portfolio_returns(portfolio, start=start, end=end)
+    validate_position_value(aggregate.total_value)
+    validate_parametric_sample_size(aggregate.alignment.n_observations)
+
+    simulated, estimate = simulate_portfolio_returns(
+        portfolio, aggregate, covariance_estimator, n_simulations, seed
+    )
+    cutoff = np.quantile(simulated, 1.0 - alpha)
+    tail = simulated[simulated <= cutoff]
+    loss_magnitude = scale_to_horizon(
+        signed_loss_magnitude(tail.mean(), aggregate.total_value), horizon_days
+    )
+
+    metadata = monte_carlo_portfolio_metadata(aggregate, portfolio, estimate, n_simulations, seed)
+    metadata["tail_size"] = len(tail)
+    metadata.update(tail_sample_diagnostics(n_simulations, alpha))
+
+    return RiskResult(
+        method=RiskMethod.MONTE_CARLO,
+        metric=RiskMetric.EXPECTED_SHORTFALL,
+        value=loss_magnitude,
+        confidence_level=alpha,
+        horizon_days=horizon_days,
+        portfolio_value=aggregate.total_value,
+        as_of=as_of if as_of is not None else aggregate.as_of,
+        n_observations=aggregate.alignment.n_observations,
+        asset_ids=list(portfolio.asset_ids),
+        currency=portfolio.currency,
+        metadata=metadata,
     )

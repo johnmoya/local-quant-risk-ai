@@ -169,6 +169,92 @@ require keeping two orderings in sync by hand, which is the kind of
 invariant that decays silently. Sorting is a total order because duplicate
 `asset_id`s are rejected.
 
+### Amendment (M11.4): multivariate Monte Carlo
+
+**k=1 is bounded, not bit-identical.** Section 5 originally promised a
+bit-identical k=1 path. That was written before M11.3 found that the
+covariance matrix cannot reproduce pandas' `std` exactly, and Monte Carlo
+inherits the same gap: for the same seed the normal draws are identical
+(verified with `array_equal`) and the mean matches exactly, but sigma
+differs by a few ulps. Measured over 3,000 random cases: at most 5 ulps,
+73.8% identical, worst relative difference 7.5e-16. Tests assert 16 ulps,
+like M11.3.
+
+**Draw layout: `Z` is (k, n), row i is asset i's stream**, in canonical
+`asset_id` order, from one `default_rng(seed)` call. Two reasons, both
+tested exactly:
+
+- at k=1 the single row is `standard_normal(n)` itself, so the draws equal
+  v1's for the same seed;
+- appending an asset that sorts after the others leaves the earlier rows
+  unchanged. An (n, k) draw interleaves assets within each simulation, so
+  adding one reshuffles every existing stream.
+
+The simulated returns still change when an asset is added, because `L`
+does; what is stable is the per-asset randomness. The seed contract is
+v1's: `seed` is required, the research backtest's per-day
+`1_000_000 + date.toordinal()` applies unchanged, and VaR and ES called
+with the same seed draw the identical sample, so ES >= VaR holds exactly.
+The layout is recorded in every result's `metadata["random_draw_layout"]`.
+
+**Asymmetry with the parametric method on singular matrices.** A portfolio
+with a zero-variance asset or perfectly collinear assets gets a parametric
+VaR, because `wᵀΣw` is defined on any positive semi-definite matrix and
+the condition number already flags it, but raises
+`SingularCovarianceError` in Monte Carlo, because Cholesky requires
+positive definiteness. This is deliberate. A semi-definite matrix does
+have a valid square root (`Q·sqrt(max(Λ, 0))` from an eigen-decomposition),
+and an exact one, not jitter, but choosing it silently would still be a
+regularisation decision taken on the caller's behalf, and section 4 rules
+those out. Whether to offer that factor explicitly (opt-in, recorded in
+`metadata`) is left for when a real portfolio needs it. Near-singular
+matrices that Cholesky accepts go through, with the condition number in
+`metadata` exactly as in the parametric method.
+
+**Why the draw is k-dimensional at all.** For a linear portfolio `r_p` is
+exactly `Normal(wᵀmu, wᵀΣw)`, so a one-dimensional draw would give the same
+distribution. The joint draw is kept because it is what M4 committed to and
+what a bootstrap sampler or a non-linear position will need. The cost is
+memory, O(n·k): about 1.6 MB per asset at 100,000 simulations. There is no
+chunking yet.
+
+**The simulated ES tail.** `np.quantile` places
+`floor((n - 1)(1 - alpha)) + 1` draws in the tail. At the default 100,000
+simulations that is exactly `n(1 - alpha)` for alpha 0.95, 0.975, 0.99 and
+0.999, and the tail mean equals the fractional (Acerbi–Tasche) estimator
+to about 1e-16. With an awkward count the gap is 1.3e-4 relative at
+n = 100,001, alpha = 0.99 (0.024 Monte Carlo standard errors), and
+3.6e-3 at n = 12,345, alpha = 0.999 (0.11 SE), the worst case measured.
+Compare the historical method on a 250-day window at 99%, which averages 2
+or 3 observations. The tail-mean estimator is kept, consistent with v1,
+and `tail_size` is reported.
+
+**Tests and why their tolerances are what they are**
+(`tests/unit/risk/test_portfolio_monte_carlo.py`):
+
+- *k=1 vs v1*: 16 ulps, arithmetic, not statistical.
+- *Convergence to the parametric method* at n = 1e4, 1e5, 1e6: both
+  methods use the same mu and Σ, so they differ only by sampling error.
+  Tolerance: 4 × the asymptotic SE of the empirical quantile,
+  `sqrt(p(1-p)/n) / φ(z_p) · σ_p · V` (6.4%, 2.0% and 0.64% relative at
+  alpha = 0.99), and the corresponding tail-mean SE for ES. 4 SE keeps the
+  bound seed-independent (re-seeding fails with probability ~6e-5), and a
+  companion test shows a diagonal-only Σ lands more than 10× outside it.
+- *SE calibration*: over 200 seeds the standardized error has a standard
+  deviation within ±15% of 1, so the tolerance formula is itself checked.
+- *Σ recovery*: every entry of the simulated sample covariance within
+  4 SE, with `Var(S_ij) = (Σ_ii Σ_jj + Σ_ij²)/(n - 1)`; a transposed
+  factor lands more than 10× outside.
+- *A short leg, by hand*: shorts are out of scope for `Position`, so the
+  sampling kernel is tested directly with `w = (+1, -1)`, `σ = (2%, 3%)`,
+  `ρ = 0.8`: `σ_p² = 0.00034`, `VaR_99 = 0.0428956`, against 0.0838786 if
+  the correlation were ignored.
+- *Exact*: bit-identical results for all six orderings of three positions,
+  and ES >= VaR with a shared seed.
+
+Mutation-checked before commit: a transposed factor, an (n, k) layout and
+a dropped correlation each fail between 7 and 12+ of these tests.
+
 ## 2. Alignment
 
 Two distinct problems, kept separate:
@@ -281,7 +367,7 @@ v1 exactly.
 | Historical VaR | Quantile of `L`: `VaR = max(0, -Q_{1-alpha}(L))`. The quantile is exactly scale-equivariant (verified numerically: `quantile(V·r) == V·quantile(r)` bit for bit), so `k = 1` reproduces v1's floats |
 | Historical ES | Tail mean of `L` below its own cutoff. The tail is defined on portfolio P&L, not per asset: portfolio ES is not the sum of per-asset ES |
 | Parametric | The real change: `mu_p = wᵀ mu`, `sigma_p = sqrt(wᵀ Σ w)`, times the portfolio value. This is where covariance enters. Closed-form ES is the same formula scaled by `sigma_p`. Matches v1 at k=1 to within 5 ulps measured (16 asserted) rather than exactly — see the amendment below |
-| Monte Carlo | `Z ~ N(0, I_k)`, `R_sim = mu + Z · Lᵀ` where `Σ = L Lᵀ`. The M4 design note anticipated exactly this. Verified: at `k = 1` this path is **bit-identical** to v1's `mu + sigma * Z`, so published Monte Carlo figures do not move — pinned by a seeded regression test |
+| Monte Carlo | `Z ~ N(0, I_k)`, `R_sim = mu + (L · Z)ᵀ` where `Σ = L Lᵀ`, `Z` drawn as (k, n). The M4 design note anticipated exactly this. At `k = 1` the *draws* are bit-identical to v1's `mu + sigma * Z` given the same sigma, but sigma itself comes from the covariance matrix, so the reported figure matches v1 to within 5 ulps measured (16 asserted), not bit for bit — see the M11.4 amendment. v1's own Monte Carlo path is untouched, so published figures do not move |
 | Backtesting | **No change.** The four tests operate on the boolean violation series; only the upstream production of the realised series differs, which is M11's job, not `risk/backtesting.py`'s. At most a thin adapter if P&L is passed instead of returns plus a value |
 
 ## 6. API compatibility

@@ -219,11 +219,11 @@ def sample_normal(mu: float, sigma: float, n_simulations: int, seed: int) -> np.
     arguments always produce the exact same array.
 
     v1 is single-asset, so this is just `mu + sigma * Z`: the "Cholesky
-    factor" of a 1x1 covariance matrix is sigma itself. M11 (multi-asset)
-    generalizes this to `mu + L @ Z`, where `L` is the Cholesky factor of
-    the full covariance matrix and `Z` is a standard multivariate normal
-    draw, without changing this function's call shape — only its
-    internals.
+    factor" of a 1x1 covariance matrix is sigma itself. The multi-asset
+    generalisation is `sample_multivariate_normal` below, a separate
+    function rather than new internals here, so the v1 path and its
+    published figures cannot move. Given the same sigma it draws the
+    identical array at k=1.
 
     This signature — `(mu, sigma, n_simulations, seed) -> np.ndarray` — is
     deliberately pinned so a future `sample_bootstrap(returns,
@@ -232,3 +232,29 @@ def sample_normal(mu: float, sigma: float, n_simulations: int, seed: int) -> np.
     """
     rng = np.random.default_rng(seed)
     return mu + sigma * rng.standard_normal(n_simulations)
+
+
+def sample_multivariate_normal(
+    mu: np.ndarray, cholesky: np.ndarray, n_simulations: int, seed: int
+) -> np.ndarray:
+    """Draw `n_simulations` return vectors from Normal(mu, L Lᵀ), shape (n, k).
+
+    `X = mu + (L Z)ᵀ` with `Z` standard normal. `Z` is drawn in one call as
+    a **(k, n) array: row i is asset i's stream**, in the portfolio's
+    canonical `asset_id` order. The layout is chosen for two properties,
+    both verified by test:
+
+    - At k=1 the single row is exactly `standard_normal(n)` for the same
+      seed, and `L @ Z` is one multiplication per draw, so given the same
+      sigma this returns bit for bit what `sample_normal` returns.
+    - Appending an asset that sorts after the others leaves the earlier
+      rows of `Z` unchanged (an (n, k) draw interleaves the assets and
+      reshuffles every stream). The simulated returns still change, since
+      `L` changes, but the underlying random numbers per asset do not.
+
+    Memory is O(n·k): `Z` and `X` together hold 16 bytes per draw per asset,
+    about 1.6 MB per asset at the default 100,000 simulations.
+    """
+    rng = np.random.default_rng(seed)
+    standard = rng.standard_normal((cholesky.shape[0], n_simulations))
+    return mu + (cholesky @ standard).T
