@@ -11,10 +11,9 @@ import logging
 from typing import Any
 
 from fastapi import FastAPI
-from fastapi.testclient import TestClient
 
 from quant_risk_ai.api import main
-from tests.unit.api._helpers import make_series_payload
+from tests.unit.api._helpers import make_series_payload, strict_client
 
 
 def _record(caplog, message_substring: str) -> logging.LogRecord:
@@ -88,7 +87,7 @@ def test_unhandled_exception_is_logged_at_error_with_traceback(caplog):
     # catching real bugs in other tests), which would bypass exactly the
     # `Exception` handler this test exists to verify — a non-Python HTTP
     # client would only ever see the 500 response, never the exception.
-    non_raising_client = TestClient(isolated_app, raise_server_exceptions=False)
+    non_raising_client = strict_client(isolated_app, raise_server_exceptions=False)
 
     with caplog.at_level(logging.INFO):
         response = non_raising_client.get("/__test_unhandled_error")

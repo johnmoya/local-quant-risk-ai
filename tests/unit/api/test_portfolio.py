@@ -15,13 +15,12 @@ import json
 
 import numpy as np
 import pytest
-from fastapi.testclient import TestClient
 
 from quant_risk_ai import config
 from quant_risk_ai.api.main import app
 from quant_risk_ai.api.routers import portfolio as portfolio_router
 from tests.unit._boundaries import SRC_ROOT, find_forbidden_imports
-from tests.unit.api._helpers import make_series_payload
+from tests.unit.api._helpers import make_series_payload, strict_client
 from tests.unit.risk._helpers import K1_MAX_ULPS, ulps_between
 
 SEED = 20260929
@@ -365,7 +364,7 @@ def test_an_unexpected_error_is_a_500_not_a_collected_failure(monkeypatch):
         (portfolio_router.RiskMethod.PARAMETRIC, portfolio_router.RiskMetric.VAR),
         broken,
     )
-    response = TestClient(app, raise_server_exceptions=False).post(
+    response = strict_client(app, raise_server_exceptions=False).post(
         "/portfolio/risk",
         json={"positions": _two_assets(), "methods": ["historical", "parametric"]},
     )

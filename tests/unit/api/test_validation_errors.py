@@ -10,8 +10,9 @@ float pattern in docs/architecture.md.
 import json
 
 import pytest
+from fastapi import FastAPI, Response
 
-from tests.unit.api._helpers import make_series_payload
+from tests.unit.api._helpers import make_series_payload, strict_client
 
 
 def _reject_constants(token: str):
@@ -37,6 +38,20 @@ def test_a_rejected_non_finite_value_comes_back_as_a_strict_json_422(client, lit
     decoded = json.loads(response.text, parse_constant=_reject_constants)
     assert decoded["detail"][0]["loc"] == ["body", "alpha"]
     assert decoded["detail"][0]["input"] == shown
+
+
+def test_the_strict_client_rejects_a_body_python_would_accept():
+    # The premise of strict_client: json.loads and httpx's .json() accept a
+    # bare NaN; the client fixture every endpoint test uses must not.
+    app = FastAPI()
+
+    @app.get("/nan")
+    def nan() -> Response:
+        return Response(content=b'{"value": NaN}', media_type="application/json")
+
+    assert json.loads(b'{"value": NaN}')["value"] != 0.0
+    with pytest.raises(AssertionError, match="not valid JSON"):
+        strict_client(app).get("/nan")
 
 
 def test_ordinary_validation_errors_are_unchanged(client):

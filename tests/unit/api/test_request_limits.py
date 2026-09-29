@@ -26,7 +26,7 @@ import uvicorn
 from quant_risk_ai import config
 from quant_risk_ai.api.body_limit import BodySizeLimitMiddleware
 from quant_risk_ai.api.main import app
-from tests.unit.api._helpers import make_series_payload
+from tests.unit.api._helpers import check_strict_json_response, make_series_payload
 
 LIMIT = config.MAX_REQUEST_BODY_BYTES
 CHUNK = 64 * 1024
@@ -69,8 +69,16 @@ def live_url() -> Iterator[str]:
     thread.join(timeout=10)
 
 
-def test_real_chunked_body_over_the_limit_is_refused_with_413(live_url):
-    response = httpx.post(
+@pytest.fixture(scope="module")
+def live() -> Iterator[httpx.Client]:
+    """A real HTTP client, with the same strict-JSON check on every
+    response as the TestClient fixture."""
+    with httpx.Client(event_hooks={"response": [check_strict_json_response]}) as client:
+        yield client
+
+
+def test_real_chunked_body_over_the_limit_is_refused_with_413(live, live_url):
+    response = live.post(
         f"{live_url}/var/historical",
         content=_chunks(b" " * (LIMIT + 1)),
         headers=JSON_HEADERS,
@@ -83,11 +91,11 @@ def test_real_chunked_body_over_the_limit_is_refused_with_413(live_url):
     assert "QUANT_RISK_AI_MAX_REQUEST_BODY_BYTES" in response.json()["detail"]
 
 
-def test_real_chunked_body_at_exactly_the_limit_reaches_the_app_intact(live_url):
+def test_real_chunked_body_at_exactly_the_limit_reaches_the_app_intact(live, live_url):
     # 256 chunks of 64 KiB over a socket; a body the middleware truncated or
     # reordered would not parse, or would parse to a different request.
-    compact = httpx.post(f"{live_url}/var/historical", json=VAR_REQUEST, timeout=30)
-    padded = httpx.post(
+    compact = live.post(f"{live_url}/var/historical", json=VAR_REQUEST, timeout=30)
+    padded = live.post(
         f"{live_url}/var/historical",
         content=_chunks(_padded_to(LIMIT)),
         headers=JSON_HEADERS,
@@ -100,8 +108,8 @@ def test_real_chunked_body_at_exactly_the_limit_reaches_the_app_intact(live_url)
     assert padded.json() == compact.json()
 
 
-def test_honest_content_length_over_the_limit_is_refused_with_413(live_url):
-    response = httpx.post(
+def test_honest_content_length_over_the_limit_is_refused_with_413(live, live_url):
+    response = live.post(
         f"{live_url}/var/historical", content=b" " * (LIMIT + 1), headers=JSON_HEADERS, timeout=30
     )
 
