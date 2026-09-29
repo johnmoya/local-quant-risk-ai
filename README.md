@@ -1,5 +1,7 @@
 # Local Quant Risk AI
 
+[![CI](https://github.com/johnmoya/local-quant-risk-ai/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/johnmoya/local-quant-risk-ai/actions/workflows/ci.yml?query=branch%3Amaster)
+
 A local, deterministic quantitative risk engine — Historical, Parametric, and
 Monte Carlo VaR, Expected Shortfall, and VaR backtesting — exposed through a
 FastAPI service, with an Ollama-backed (Qwen3 8B) layer that explains results
