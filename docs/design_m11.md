@@ -539,18 +539,55 @@ change below landed (`8f00d67`, removed in `060da1d`).
   - *Setup.* 432 explanations from qwen3:8b over the production path: 36
     results (six engines, single-asset and k = 2, 5, 12, 50), four each,
     three runs, every rejection read.
-  - *False rejections.* 5 (1.2%), all on portfolio results and all the
-    same kind: "may affect the reliability of the estimate", drawn from a
-    flagged diagnostic. A prompt rule against it did not reduce it and
-    was withdrawn.
-  - *The stems stay.* `reliab` and `accura` stay on the list, because
-    they are what rejects "the estimate is reliable".
+  - *False rejections.* 5 of 432 (1.2%), all on portfolio results: 5 of
+    288 (1.7%) there, 0 of 144 single-asset. All five were the same kind:
+    "may affect the reliability of the estimate", drawn from a flagged
+    diagnostic. A prompt rule against it did not reduce it and was
+    withdrawn.
+  - *The stems stayed at first.* `reliab` and `accura` were kept for
+    M11.6, because they are what rejects "the estimate is reliable".
   - *Single-asset explanations.* The guard never fired on one.
   - *True rejections.* The numeric check caught four:
     - a tail written as "15%";
     - "1 out of every 100 days" said of an ES;
     - twice, the observations-per-asset ratio read as days of history,
       after which that line was relabelled as a ratio.
+
+### Amendment (M11.7): what the clean-clone quickstart changed
+
+Running the README quickstart from a clean clone showed what the
+aggregate rate had hidden.
+
+- *On the three-asset example,* 9 of 60 explanations were refused, every
+  one of them sound:
+  - 5 were caveats ("two dates had missing return data for MSFT, which
+    may affect the accuracy of the result");
+  - 4 were "S&P 500 (SPY)", its 500 rejected.
+- *Split by condition,* the 432 earlier runs showed the lexical guard's
+  false rejections were 5 of 48 on portfolio results with a sparse tail,
+  and 0 of 240 elsewhere.
+
+Two changes followed, each measured before it was kept:
+
+- **`accura-` and `reliab-` left the list** (`b93e2b1`, approved).
+  - In 552 explanations they never caught the model vouching for itself.
+  - `model_quality` keeps `calibrat-` and `backtest-`.
+- **Portfolio prompts ask for assets by identifier only** (`444b254`,
+  narrowed in `b9c47ce`).
+  - The first version put the rule in both prompts. An A/B then showed it
+    hurt single-asset Monte Carlo explanations: 300 observations misread
+    as "3,000" in 15 of 60, against 0 of 60 without it.
+  - It now appears in the portfolio prompt only, where it took the SPY
+    case from 3 of 30 to 0 of 30.
+
+With both in place, measured against qwen3:8b with every rejection read:
+
+- **Benchmark (288 explanations):** one refused, a true rejection ("the
+  worst 15% of returns" for a 5% tail). False rejections: 0 of 96
+  single-asset, 0 of 192 portfolio.
+- **Quickstart example (120):** one refused, a false rejection ("258 days
+  with returns for all assets", the sample written as days).
+- **The lexical guard** did not fire once in those 408.
 
 ## 8. Invariants
 

@@ -591,3 +591,152 @@ case below. Implemented in `risk/backtesting.py::traffic_light_zone`.
 the textbook Basel table): `0-4` violations → green, `5-9` → yellow,
 `10+` → red. Pinned down for exactly these boundary counts in
 `tests/unit/risk/test_backtesting.py::test_traffic_light_canonical_basel_boundaries`.
+
+## Multi-asset portfolios (v1.1.0, M11)
+
+Everything above holds per asset. This section covers what changes when a
+position is several assets: `/portfolio/*` in the API,
+`risk/portfolio.py`, `risk/covariance.py` and the `portfolio_*` functions
+next to each v1 method. The design and every measurement quoted here are
+in `docs/design_m11.md`.
+
+### Holdings
+
+A `Portfolio` is a set of `Position`s, each an `AssetReturnSeries` plus a
+**notional** in the portfolio's single currency:
+
+```
+V   = sum_i n_i                    (portfolio_value)
+w_i = n_i / V                      (weights: derived, reported, never an input)
+```
+
+- **Long only.** `n_i >= 0` and `V > 0`. A negative notional raises
+  `InvalidParameterError` naming the asset. This is a known limitation,
+  re-evaluated after M13.
+- **Canonical order.** Positions are sorted by `asset_id` at
+  construction, and every array and every `metadata` list follows that
+  order. The same holdings in any input order give the same figures, bit
+  for bit (tested on all six orderings of three positions).
+- **One currency, one return method** across positions, or
+  `DataValidationError`.
+- **Static snapshot.** Historical simulation applies *today's* notionals
+  to past returns. This is the industry convention, but it is an
+  assumption: the figure is "what these holdings would have lost", not
+  what the portfolio actually lost.
+
+### Alignment
+
+1. **The window.** Every asset must cover it, or `InsufficientDataError`
+   names the asset that does not.
+   - With `start`/`end`, that range is the window.
+   - Without them, the window is `[max(first_date_i), min(last_date_i)]`,
+     and it is reported (`window_start`, `window_end`), never applied
+     silently.
+2. **Holes inside the window.** Any date missing for any asset is dropped
+   for all of them (intersection). There is no zero-fill, which would
+   manufacture zero-return days and bias volatility and correlation down.
+   There is no pairwise-complete estimation, which can give a covariance
+   matrix that is not positive semi-definite.
+3. **Recorded individually.** `metadata.dropped_dates` lists every dropped
+   date. `dropped_dates_missing_assets` says which assets were missing on
+   each, and `alignment_by_asset` accounts for every input observation of
+   every asset. A count alone could not tell twelve scattered holidays
+   from the one crash day an asset was halted, which is the day that
+   thins the tail.
+
+Sample-size checks run on the aligned series, after the drop.
+
+### Historical VaR and ES
+
+On the aligned `T × k` return matrix `R`:
+
+```
+r_p      = R · w                                 (portfolio return series)
+VaR      = max(0, -Q_{1-alpha}(r_p)) · V · sqrt(h)
+ES       = max(0, -mean(r_p | r_p <= Q_{1-alpha}(r_p))) · V · sqrt(h)
+```
+
+- The quantile and the tail are taken on the portfolio series, never per
+  asset and summed: the portfolio's worst days are not its assets' worst
+  days.
+- The computation is done in return space (`R · w`, then `× V`), not in
+  P&L space (`R · n`). The empirical quantile is scale-equivariant in
+  exact arithmetic but not in floating point: `quantile(c·r)` differed
+  from `c·quantile(r)` in 31% of 4,000 measured cases.
+- Return space keeps a one-position portfolio **identical to v1, bit for
+  bit**, which the API asserts with `==`. The cost is that weights
+  degenerate for a market-neutral book, which matters once shorts are
+  admitted.
+
+### Covariance
+
+The estimator is the sample covariance of `R` (`ddof=1`), behind a
+pluggable estimator seam; shrinkage is decided at M12. Guards, all
+deterministic, with nothing regularised silently:
+
+- **`T >= k + 1`**, or `InsufficientSampleSizeError` naming both numbers:
+  the floor for a full-rank sample covariance.
+- **The condition number** is in `metadata` on every covariance-based
+  result (`covariance_condition_number`), not only on failure.
+  `covariance_ill_conditioned` is set above `1e12`.
+- **`T / k`** is reported as `observations_per_asset`.
+  `sparse_covariance_sample` is set below 10, the usual rule of thumb:
+  full rank is necessary, not sufficient. At `k = 20`, `T = 25` the
+  matrix is invertible and the estimate is noise.
+
+### Parametric VaR and ES
+
+The v1 formulas, with the portfolio's moments:
+
+```
+mu_p    = wᵀ mu
+sigma_p = sqrt(wᵀ Σ w)
+VaR     = max(0, -(mu_p + sigma_p · Phi^-1(1 - alpha))) · V · sqrt(h)
+```
+
+- ES is the v1 closed form with `mu_p`, `sigma_p`.
+- `wᵀ Σ w` is defined on any positive semi-definite matrix. A zero-variance
+  or collinear asset still gets a figure, and the condition number flags
+  it.
+- A one-position portfolio matches v1 to within 5 ulps measured (16
+  asserted), not exactly. `sqrt` of a covariance-matrix entry and pandas'
+  `std` are different arithmetic, and the matrix is kept because it is the
+  method's substance, not an implementation detail.
+
+### Monte Carlo VaR and ES
+
+```
+Σ = L Lᵀ                    (Cholesky)
+Z ~ N(0, I_k), drawn (k, n) from default_rng(seed), row i = asset i
+R_sim = mu + (L Z)ᵀ,    r_p = R_sim · w
+```
+
+- VaR and ES are then taken on `r_p` exactly as in v1.
+- **Row i is asset i's stream.** At `k = 1` the draws equal v1's for the
+  same seed, and appending an asset that sorts last leaves the others'
+  draws unchanged. The layout is recorded in `metadata.random_draw_layout`.
+- Cholesky needs positive definiteness, so a singular or numerically
+  non-positive-definite matrix raises `SingularCovarianceError`, carrying
+  the condition number.
+  - This is the one deliberate asymmetry with the parametric method, which
+    returns a figure on the same matrix.
+  - No jitter or eigenvalue repair is applied on the caller's behalf.
+- A one-position portfolio matches v1 to within 5 ulps measured (16
+  asserted), for the same reason as parametric: the draws are identical,
+  `sigma` is not.
+- Memory is `O(n · k)`, which is why the API caps `k × n_simulations` at
+  1e7 (see `docs/api_reference.md`).
+
+### Invariants, and one that does not hold
+
+- **Diversification:** `sigma_p <= sum_i w_i sigma_i` always
+  (`test_portfolio_parametric.py::test_diversification_lowers_portfolio_sigma`).
+- **`ES >= VaR`** holds for every method, as in v1. Monte Carlo VaR and ES
+  with the same seed use the same draws.
+- **VaR is not subadditive in general.** It is under elliptical
+  distributions, so the property may only ever be asserted for the
+  parametric method. No test asserts it for historical or Monte Carlo,
+  where a legitimate violation would fail the suite.
+- **ES is subadditive as a measure, but not as this estimator on small
+  samples.** See "Subadditivity: true for the measure, not for this
+  estimator" above.

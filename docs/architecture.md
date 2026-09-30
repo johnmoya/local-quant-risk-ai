@@ -5,7 +5,8 @@
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │                         FastAPI Service                       │
-│  (routers: /var, /expected-shortfall, /backtest, /explain)    │
+│  (routers: /var, /expected-shortfall, /backtest, /explain,    │
+│   /portfolio/*)                                               │
 └───────────────┬─────────────────────────────┬─────────────────┘
                  │                             │
                  ▼                             ▼
@@ -22,7 +23,8 @@
      ┌───────────────────────┐
      │      Data Layer          │
      │  (loaders, returns,        │
-     │   single-asset schemas)     │
+     │   series and portfolios,    │
+     │   alignment)                │
      └───────────────────────┘
 ```
 
@@ -93,7 +95,7 @@ accepts no number the model was not shown.
   - attribution to an asset;
   - correlation or hedging;
   - diversification;
-  - model quality;
+  - model quality (calibration, backtesting);
   - advice;
   - guarantees.
 
@@ -119,6 +121,37 @@ What is **not** covered, deliberately stated so nobody reads more into a
 
 Using an LLM to judge the text was ruled out: it is not deterministic,
 and it would put a model back in the path that verifies the model.
+
+**Measured cost: sound explanations the guards refuse.** qwen3:8b wrote
+explanations through the production prompt, client and both guards, and
+every rejection was read. With the configuration that ships:
+
+- **Benchmark: 288 explanations** (36 results, eight each; 12
+  single-asset, 24 portfolio from 2 to 50 assets).
+  - One was refused, a true rejection: "the worst 15% of returns" for a
+    5% tail.
+  - False rejections: 0 of 96 single-asset, 0 of 192 portfolio.
+- **The README quickstart's three-asset example: 120 explanations**, six
+  results, 20 each. One was refused, a false rejection: "258 days with
+  returns for all assets", the sample written as days, which the horizon
+  rule refuses.
+- **The lexical guard did not fire once** in those 408.
+
+Before release the same measurements were worse, and two changes came
+out of them:
+- *The measurements.* The benchmark had 5 false rejections in 432 (1.2%;
+  0 of 144 single-asset, 5 of 288 portfolio). The example had 9 in 60
+  (15%).
+- *`accura-` and `reliab-` left the lexical list.* They rejected only
+  sound caveats about a flagged diagnostic ("two dates were dropped,
+  which may affect the accuracy of the result"), and never the model
+  vouching for itself.
+- *The portfolio prompt asks for assets by identifier only.* The model
+  had expanded SPY into "S&P 500", and its 500 was rejected. The same
+  rule hurt single-asset explanations (300 observations misread as
+  "3,000" in 15 of 60), so only the portfolio prompt carries it.
+
+A 502 is worth one retry: the model samples a new text each call.
 
 **The risk engine also has zero *logging* calls, for the same "no I/O"
 reason it has zero LLM calls: `risk/*` is meant to stay pure-function
@@ -207,17 +240,26 @@ The rule that follows from them:
    `allow_nan=False` and decode with a `parse_constant` that rejects
    `NaN` / `Infinity`.
 
-## v1 scope boundaries
+## Scope boundaries (v1.1.0)
 
-- **Single asset, single return series.** No `Portfolio`/`Position` types or
-  covariance matrix yet — those arrive in M11.
-- **Single base currency.** Multi-currency is out of scope for v1 and not
-  yet scheduled on the roadmap.
-- **Monte Carlo default distribution**: multivariate normal via Cholesky
-  decomposition (collapses to univariate normal sampling in the single-asset
-  v1 case). A historical-bootstrap sampler is a planned, pluggable
+- **Single assets and long-only multi-asset portfolios (M11).**
+  `Portfolio`/`Position` compose v1's `AssetReturnSeries`; the v1 types and
+  endpoints are unchanged, and a one-position portfolio reproduces v1
+  (historical exactly, parametric and Monte Carlo to within 16 ulps).
+  There are no short positions, no rebalancing, no time-varying holdings,
+  no factor models (M12) and no EWMA covariance (M13). The maths is in
+  `docs/math_reference.md`, "Multi-asset portfolios", and the design in
+  `docs/design_m11.md`.
+- **Single base currency.** Multi-currency is out of scope and not yet
+  scheduled on the roadmap; a portfolio mixing currencies is rejected.
+- **Monte Carlo distribution**: multivariate normal via Cholesky
+  decomposition of the sample covariance (univariate normal for a single
+  asset). A historical-bootstrap sampler is a planned, pluggable
   extension — see the design note in
   `src/quant_risk_ai/risk/stats_utils.py`.
+- **Explanations** narrate one `RiskResult` per call and are verified by
+  two deterministic guards whose gaps are stated above ("What the
+  explanation guards cover, and what they do not").
 
 ## Module responsibilities
 

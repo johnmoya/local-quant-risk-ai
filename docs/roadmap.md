@@ -131,14 +131,20 @@ behavior, which callers may notice:
     cannot support: attribution, diversification, correlation, model
     quality, advice, guarantees. The rejection is a 502 with a `category`
     field.
-  - *Measured against qwen3:8b* over 144 single-asset explanations, six
-    engines, both paths through the production prompt: the lexical guard
-    never fired on a single-asset text, and the one rejection was a true
-    one ("the worst 15% of outcomes" for a 5% tail). Over 432
-    explanations in all, 5 false rejections (1.2%), all on portfolio
-    results and all the same kind: "may affect the reliability of the
-    estimate", drawn from a flagged diagnostic. They were kept as the
-    price of rejecting "the estimate is reliable".
+  - *Measured against qwen3:8b* with the configuration that ships, every
+    rejection read:
+    - 288 benchmark explanations (96 single-asset, 192 portfolio): 0
+      false rejections, and 1 true one ("the worst 15% of returns" for a
+      5% tail).
+    - 120 explanations of the README quickstart's example: 1 false
+      rejection ("258 days with returns for all assets", the sample
+      written as days).
+    - The lexical guard did not fire once.
+    - Before release the benchmark had shown 5 false rejections in 432
+      (1.2%: 0 of 144 single-asset, 5 of 288 = 1.7% portfolio), and the
+      example 9 of 60. Removing `accura-`/`reliab-` from the list and
+      asking portfolio prompts for assets by identifier closed that gap;
+      see `docs/design_m11.md`, M11.7 amendment.
 
   The prompt now states these rules and asks for dates in YYYY-MM-DD.
 - **Ollama context window.** New `QUANT_RISK_AI_OLLAMA_NUM_CTX` (default
