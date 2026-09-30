@@ -352,7 +352,9 @@ def _diagnostics(result: RiskResult, facts: _Builder) -> None:
         lines.append((f"- covariance matrix ill-conditioned: {shown}", ()))
     if _is_number(meta.get("observations_per_asset")):
         fact, shown = _decimal(meta["observations_per_asset"], 2)
-        lines.append((f"- observations per asset: {shown}", (fact,)))
+        lines.append(
+            (f"- observations divided by number of positions (a ratio, not days): {shown}", (fact,))
+        )
     if _is_number(meta.get("n_simulations")) and isinstance(meta["n_simulations"], int):
         fact, shown = _count(meta["n_simulations"])
         lines.append((f"- simulations: {shown}", (fact,)))
