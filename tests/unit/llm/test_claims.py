@@ -20,9 +20,7 @@ from quant_risk_ai.llm.claims import verify_no_unsupported_claims
         ("The two holdings are uncorrelated.", "correlation", "uncorrelated"),
         ("MSFT hedges part of the AAPL exposure.", "correlation", "hedges"),
         ("The model is well calibrated.", "model_quality", "calibrated"),
-        ("The estimate is accurate.", "model_quality", "accurate"),
-        ("The estimate may be inaccurate.", "model_quality", "inaccurate"),
-        ("This is a reliable figure.", "model_quality", "reliable"),
+        ("The model looks uncalibrated.", "model_quality", "uncalibrated"),
         ("Backtesting confirms the figure.", "model_quality", "Backtesting"),
         ("We recommend trimming the position.", "advice", "recommend"),
         ("You should reduce the AAPL position.", "advice", "should reduce"),
@@ -63,6 +61,20 @@ def test_ordinary_text_passes(text):
     verify_no_unsupported_claims(text)
 
 
-@pytest.mark.parametrize("text", ["the recalibrated model", "a reaccurate figure"])
+@pytest.mark.parametrize("text", ["the recalibrated model", "a prebacktest run"])
 def test_a_stem_preceded_by_other_letters_does_not_match(text):
+    verify_no_unsupported_claims(text)
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
+        # The sound caveats qwen3:8b wrote about flagged diagnostics, which
+        # the accura-/reliab- stems used to reject (measured before v1.1.0).
+        "Two dates had missing return data for MSFT, which may affect the accuracy of the result.",
+        "The tail rests on fewer than expected observations, which may affect the reliability "
+        "of the estimate.",
+    ],
+)
+def test_a_caveat_about_accuracy_or_reliability_is_not_rejected(text):
     verify_no_unsupported_claims(text)

@@ -31,12 +31,17 @@ _STEMS: dict[str, tuple[str, ...]] = {
     "attribution": (r"contribut\w*", r"marginal\w*", r"component\w*"),
     "diversification": (r"diversif\w*",),
     "correlation": (r"correlat\w*", r"hedg\w*"),
-    "model_quality": (r"calibrat\w*", r"accura\w*", r"reliab\w*", r"backtest\w*"),
+    # Not "accura-" or "reliab-" (removed before v1.1.0): measured against
+    # qwen3:8b they never caught the model vouching for itself, only sound
+    # caveats drawn from a flagged diagnostic ("two dates were dropped, which
+    # may affect the accuracy of the result"), rejecting about a fifth of the
+    # explanations of historical results with a sparse tail.
+    "model_quality": (r"calibrat\w*", r"backtest\w*"),
     "advice": (r"recommend\w*", r"should\s+(?:buy|sell|reduce|increase)"),
     "guarantee": (r"guarantee\w*",),
 }
 
-# "uncorrelated", "inaccurate", "non-diversified" make the same claim as
+# "uncorrelated", "uncalibrated", "non-diversified" make the same claim as
 # the bare stem, so the common negating prefixes are part of the word.
 _PATTERNS: dict[str, re.Pattern[str]] = {
     category: re.compile(rf"\b(?:un|in|non-?)?(?:{'|'.join(stems)})\b", re.IGNORECASE)

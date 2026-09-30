@@ -71,7 +71,8 @@ def test_ollama_failure_propagates():
 
 def test_unsupported_claim_propagates_even_when_every_number_reconciles():
     client = _client_returning(
-        "At the 99% confidence level, the 1-day VaR for AAPL is 1234.56, a reliable estimate."
+        "At the 99% confidence level, the 1-day VaR for AAPL is 1234.56, "
+        "from a well calibrated model."
     )
 
     with pytest.raises(UnsupportedClaimError, match="model_quality"):
