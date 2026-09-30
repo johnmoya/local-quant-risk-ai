@@ -210,3 +210,38 @@ def test_figures_in_their_own_unit_or_unmarked_pass(text):
 def test_a_figure_in_the_wrong_unit_is_rejected(text, invented):
     with pytest.raises(NumericConsistencyError, match=invented):
         verify_numeric_consistency(text, _RESULT_95)
+
+
+# --- asset identifiers are names, not numbers --------------------------------
+
+
+def _result_for(asset_id: str) -> RiskResult:
+    return RiskResult(
+        method=RiskMethod.HISTORICAL,
+        metric=RiskMetric.VAR,
+        value=1234.56,
+        confidence_level=0.99,
+        horizon_days=1,
+        portfolio_value=100_000.0,
+        as_of=date(2026, 8, 21),
+        n_observations=250,
+        asset_ids=[asset_id],
+    )
+
+
+@pytest.mark.parametrize("asset_id", ["7203.T", "ASSET001", "BRK.B", "0700.HK"])
+def test_an_asset_identifier_with_digits_is_not_read_as_a_number(asset_id):
+    text = f"The 1-day VaR for {asset_id} is 1234.56 ({asset_id})."
+
+    verify_numeric_consistency(text, _result_for(asset_id))
+
+
+def test_the_digits_of_an_identifier_alone_are_still_checked():
+    with pytest.raises(NumericConsistencyError, match="7203"):
+        verify_numeric_consistency("The VaR of 7203 is 1234.56.", _result_for("7203.T"))
+
+
+def test_a_purely_numeric_identifier_is_not_blanked_out():
+    # Removing "123" from the text would also let every invented 123 pass.
+    with pytest.raises(NumericConsistencyError, match="123"):
+        verify_numeric_consistency("The VaR for 123 is 1234.56.", _result_for("123"))

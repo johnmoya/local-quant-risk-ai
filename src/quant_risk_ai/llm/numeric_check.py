@@ -143,6 +143,17 @@ def _extract_tokens(text: str, currency: str = "USD") -> list[_Token]:
     return tokens
 
 
+def _remove_names(text: str, names: frozenset[str]) -> str:
+    """Blank out each asset identifier, so the digits of "7203.T" or
+    "ASSET001" are not read as numbers. Only identifiers with a letter in
+    them: removing a purely numeric one ("123") would also remove every
+    invented 123."""
+    for name in sorted(names, key=len, reverse=True):
+        if any(ch.isalpha() for ch in name):
+            text = re.sub(rf"(?<![\w.]){re.escape(name)}(?![\w])", " ", text)
+    return text
+
+
 def _extract_numbers(text: str) -> list[float]:
     return [token.value for token in _extract_tokens(text)]
 
@@ -185,7 +196,7 @@ def verify_numeric_consistency(
     if/optional check.
     """
     facts = build_fact_sheet(result)
-    dates, remaining = _extract_dates(text)
+    dates, remaining = _extract_dates(_remove_names(text, facts.names))
     unmatched_dates = sorted({str(d) for d in dates if d not in facts.dates})
 
     unmatched = sorted(

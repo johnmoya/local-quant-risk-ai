@@ -13,6 +13,7 @@ neither rendered nor pooled.
 from __future__ import annotations
 
 import math
+import re
 from dataclasses import dataclass, field
 from datetime import date
 from enum import Enum
@@ -47,9 +48,13 @@ class NumberFact:
 
 @dataclass(frozen=True)
 class FactSheet:
+    """`names` are the asset identifiers the text may mention: names, not
+    numbers, even when they contain digits ("7203.T")."""
+
     lines: tuple[str, ...]
     numbers: tuple[NumberFact, ...]
     dates: frozenset[date]
+    names: frozenset[str] = frozenset()
 
 
 @dataclass
@@ -57,6 +62,7 @@ class _Builder:
     lines: list[str] = field(default_factory=list)
     numbers: list[NumberFact] = field(default_factory=list)
     dates: set[date] = field(default_factory=set)
+    names: set[str] = field(default_factory=set)
 
     def text(self, label: str, value: str) -> None:
         self.lines.append(f"- {label}: {value}")
@@ -79,8 +85,22 @@ class _Builder:
 
     def build(self) -> FactSheet:
         return FactSheet(
-            lines=tuple(self.lines), numbers=tuple(self.numbers), dates=frozenset(self.dates)
+            lines=tuple(self.lines),
+            numbers=tuple(self.numbers),
+            dates=frozenset(self.dates),
+            names=frozenset(self.names),
         )
+
+
+def _iso_date(value: str) -> date | None:
+    """`value` as a date if it is exactly YYYY-MM-DD (a portfolio's
+    window_start, say), so it is shown and pooled as a date."""
+    if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
+        return None
+    try:
+        return date.fromisoformat(value)
+    except ValueError:
+        return None
 
 
 def build_fact_sheet(result: RiskResult) -> FactSheet:
@@ -101,9 +121,12 @@ def build_fact_sheet(result: RiskResult) -> FactSheet:
     facts.date("as_of", result.as_of)
     facts.number("n_observations", result.n_observations, Unit.PLAIN)
     facts.text("asset_ids", ", ".join(result.asset_ids))
+    facts.names.update(result.asset_ids)
     for key, value in result.metadata.items():
         label = f"metadata.{key}"
-        if isinstance(value, bool) or isinstance(value, str):
+        if isinstance(value, str) and (day := _iso_date(value)) is not None:
+            facts.date(label, day)
+        elif isinstance(value, bool) or isinstance(value, str):
             facts.text(label, str(value))
         elif isinstance(value, int | float) and math.isfinite(value):
             unit = Unit.RATE if key in _RATE_METADATA_KEYS else Unit.PLAIN

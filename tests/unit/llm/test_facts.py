@@ -8,10 +8,12 @@ from typing import Any
 import numpy as np
 import pytest
 
+from quant_risk_ai.data.schemas import Portfolio, Position
 from quant_risk_ai.llm.facts import Unit, build_fact_sheet
 from quant_risk_ai.llm.numeric_check import (
     _extract_dates,
     _extract_numbers,
+    _remove_names,
     expected_numbers,
     verify_numeric_consistency,
 )
@@ -22,13 +24,16 @@ from quant_risk_ai.risk.expected_shortfall import (
     parametric_expected_shortfall,
 )
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
-from quant_risk_ai.risk.var_historical import historical_var
+from quant_risk_ai.risk.var_historical import historical_var, portfolio_historical_var
 from quant_risk_ai.risk.var_monte_carlo import monte_carlo_var
 from quant_risk_ai.risk.var_parametric import parametric_var
 from tests.unit.risk._helpers import make_asset_returns
 
 _SERIES = make_asset_returns(
     list(np.random.default_rng(7).normal(0.0005, 0.02, 300)), asset_id="AAPL"
+)
+_TICKER_SERIES = make_asset_returns(
+    list(np.random.default_rng(8).normal(0.0, 0.02, 300)), asset_id="7203.T"
 )
 _COMMON: dict[str, Any] = {
     "alpha": 0.99,
@@ -46,6 +51,14 @@ def _single_asset_results() -> list[RiskResult]:
         historical_expected_shortfall(_SERIES, **_COMMON),
         parametric_expected_shortfall(_SERIES, **_COMMON),
         monte_carlo_expected_shortfall(_SERIES, seed=3, n_simulations=5_000, **_COMMON),
+        # A one-position portfolio takes the single-asset path; its window
+        # dates are shown and pooled as dates, its nested metadata neither.
+        portfolio_historical_var(
+            Portfolio(positions=(Position(series=_TICKER_SERIES, notional=250_000.0),)),
+            alpha=0.99,
+            horizon_days=10,
+            as_of=date(2026, 3, 5),
+        ),
     ]
 
 
@@ -54,12 +67,20 @@ def _facts_block(prompt: str) -> str:
     return prompt.split("\n\n")[-2]
 
 
+def set_of(result: RiskResult) -> frozenset[str]:
+    return frozenset(result.asset_ids)
+
+
 def _prompt_figures(result: RiskResult) -> tuple[list[date | str], list[float]]:
-    dates, remaining = _extract_dates(_facts_block(build_explanation_prompt(result)))
+    block = _remove_names(_facts_block(build_explanation_prompt(result)), set_of(result))
+    dates, remaining = _extract_dates(block)
     return dates, _extract_numbers(remaining)
 
 
-@pytest.fixture(params=_single_asset_results(), ids=lambda r: f"{r.method.value}-{r.metric.value}")
+@pytest.fixture(
+    params=_single_asset_results(),
+    ids=lambda r: f"{r.method.value}-{r.metric.value}-{r.asset_ids[0]}",
+)
 def result(request: pytest.FixtureRequest) -> RiskResult:
     return request.param
 
