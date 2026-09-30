@@ -36,6 +36,8 @@ _RULES = (
     "calculate, round, convert, add up, invent, or infer any number that is "
     "not explicitly listed here.\n"
     "- Write dates exactly as listed, in YYYY-MM-DD form.\n"
+    "- Refer to each asset only by its identifier, exactly as listed; do not "
+    "expand it into a company or index name.\n"
     "- Describe the horizon as an N-day horizon, N being horizon_days. "
     "Describe the sample as a number of observations, never as days.\n"
     "- Say only what is listed. Do not mention risk contributions, marginal "

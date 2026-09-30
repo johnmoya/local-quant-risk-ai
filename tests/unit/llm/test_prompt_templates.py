@@ -58,3 +58,12 @@ def test_prompt_omits_metadata_line_when_empty():
     prompt = build_explanation_prompt(result)
 
     assert "metadata" not in prompt
+
+
+def test_prompt_asks_for_assets_by_identifier_only():
+    # Measured: asked nothing, the model expanded SPY into "S&P 500", and the
+    # 500 was rejected as an invented number.
+    prompt = build_explanation_prompt(_RESULT)
+
+    assert "only by its identifier" in prompt
+    assert "do not expand it into a company or index name" in prompt
