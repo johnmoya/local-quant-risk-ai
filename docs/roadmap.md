@@ -97,13 +97,78 @@ behavior, which callers may notice:
   Carlo VaR (v1 and portfolio) now report `expected_tail_observations` and
   `sparse_tail` in `metadata`, as ES already did: `n × (1 - alpha)` over
   real observations for historical, over simulations for Monte Carlo. No
-  figure changes. `/explain` renders the full metadata into its prompt, so
-  VaR explanations now see these two values too, exactly as ES ones did.
+  figure changes. `/explain` shows each scalar metadata value to the
+  model, so VaR explanations now see these two values too, exactly as ES
+  ones did.
+- **New — portfolio explanations (M11.6).** `/explain` takes a
+  `/portfolio/*` result as returned. The prompt is a bounded summary:
+  - the ten largest positions with notional and weight;
+  - the method's diagnostics;
+  - the dropped dates, the first five with the assets missing on each.
+
+  It measures 1,226 tokens at 50 assets. A resubmitted portfolio result
+  whose notionals, weights, `asset_ids` and `portfolio_value` disagree is
+  a **422**.
+- **Behavior change — `/explain` checks v1 explanations more strictly.**
+  The same guards now apply to single-asset results, closing gaps that
+  existed in v1:
+  - *Dates are compared whole.* `as_of`'s year, month and day used to sit
+    in the numeric pool as loose numbers. Any invented 21, 8 or 2026 passed
+    on 2026-08-21, and a "5-day" horizon passed on the 5th. Now a date must
+    match `as_of` whole (ISO, "August 21, 2026" or "21 August 2026"). A
+    bare year or a date in another format is rejected.
+  - *The pool matches the prompt.* The v1 prompt dumped `metadata`, nested
+    lists and dicts included, while the pool skipped anything that was not
+    a scalar. A model repeating a number it had been shown could be
+    rejected for it. Both are now built from one fact sheet, and nested
+    metadata is neither shown nor pooled.
+  - *Units and horizon.* `$` or the currency code may only match money,
+    and `%` only rates. "N day(s)" must equal `horizon_days`. Unmarked
+    numbers match anything, as before.
+  - *Asset identifiers are names.* The digits of "7203.T" or "ASSET001" no
+    longer make an explanation fail for naming its own asset.
+  - *Unsupported claims.* A new lexical guard rejects claims the result
+    cannot support: attribution, diversification, correlation, model
+    quality, advice, guarantees. The rejection is a 502 with a `category`
+    field.
+  - *Measured against qwen3:8b* over 144 single-asset explanations, six
+    engines, both paths through the production prompt: the lexical guard
+    never fired on a single-asset text, and the one rejection was a true
+    one ("the worst 15% of outcomes" for a 5% tail). Over 432
+    explanations in all, 5 false rejections (1.2%), all on portfolio
+    results and all the same kind: "may affect the reliability of the
+    estimate", drawn from a flagged diagnostic. They were kept as the
+    price of rejecting "the estimate is reliable".
+
+  The prompt now states these rules and asks for dates in YYYY-MM-DD.
+- **Ollama context window.** New `QUANT_RISK_AI_OLLAMA_NUM_CTX` (default
+  `4096`) and `QUANT_RISK_AI_OLLAMA_NUM_PREDICT` (default `512`), sent
+  with every request instead of inheriting the server's defaults.
+  - Ollama silently drops the start of a prompt that overflows the
+    window, so a prompt that might not fit with the output is now a 422
+    before the call.
+  - A response cut off at `num_predict` is a 503 instead of a truncated
+    explanation.
+  - Opt-in tests against a real Ollama:
+    `QUANT_RISK_AI_OLLAMA_TESTS=1 uv run pytest -m ollama`. They are
+    never run in CI.
 - **Known limitation — no short positions.** Portfolio positions must have
   a non-negative notional; a negative one raises `InvalidParameterError`
   naming the asset. Supporting shorts means revisiting the historical
   method's return-space weights (they degenerate for a market-neutral
   book), so it is re-evaluated after M13 rather than folded into M11.
+- **Repository history — use `git blame -w`.** Four commits
+  (`a555ccd`, `a1a5f0a`, `11200b5`, and the fix, `cf343f8`) rewrote
+  whole files' line endings (CRLF introduced, then removed), so a plain
+  `git blame` attributes most lines of six files to them. `git blame -w`
+  ignores the change and attributes every line to the commit that really
+  wrote it.
+  - There is no `.git-blame-ignore-revs`. Three of the four commits also
+    carry real changes, and ignoring them still misattributed 757 of
+    1,836 lines (41%), some to plausible but wrong commits. An evident
+    error was preferred to a silent one.
+  - The pushed history was not rewritten.
+  - Since the fix, `.gitattributes` enforces `eol=lf`.
 - **Test/runtime dependencies.** `httpx2` joins the `dev` extra for
   Starlette's `TestClient`; Starlette moves 1.6.0 → 1.7.0. The suite runs
   warning-free under `pytest -W error`.

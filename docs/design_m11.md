@@ -459,6 +459,99 @@ A negative test is mandatory and must be seen failing before the fix, the
 same discipline used for the import scanner: an explanation carrying an
 invented horizon that equals `(1 - alpha) * 100` must be rejected.
 
+### Amendment (M11.6): what shipped
+
+Measuring before implementing turned up two problems that the plan above
+did not have:
+- **The v1 prompt overflowed the context.** It dumped `metadata` whole.
+  A 50-asset result came to ~13,800 characters (~4,600 tokens), over the
+  4096-token window, and Ollama silently drops the start of an
+  overflowing prompt, which is where the instructions are.
+- **The prompt and the pool disagreed.** The prompt showed weights and
+  notionals that the pool, which skipped nested lists, did not contain.
+
+A temporary 422 for multi-asset results guarded `/explain` until the
+change below landed (`8f00d67`, removed in `060da1d`).
+
+- **One fact sheet** (`llm/facts.py`) feeds both the prompt and the pool,
+  in both directions. Every number in the prompt is a fact in its own
+  unit, and every fact is in the prompt, both asserted on all six engines.
+  - **Single-asset results** keep their v1 fields, and each scalar
+    metadata value appears on its own line.
+  - **Portfolio results** (`len(asset_ids) > 1`, dispatched inside
+    `/explain`, with no new endpoint) get a summary whose size does not
+    grow with `k`:
+    - the ten largest positions, with the weight recomputed from the
+      notionals, and the rest on one line;
+    - the diagnostics the method has;
+    - the dropped dates: how many, the first five, and at most five
+      missing assets on each.
+  - Figures are formatted once, in Python: money and percentages to 2
+    decimals, counts as integers, the condition number to 3 significant
+    figures and never in exponent notation.
+  - Beyond the plan, `n_simulations` is shown. `mu`, `sigma`, `seed` and
+    the draw layout are not.
+- **Edge validation.** A portfolio result is a 422 before any prompt is
+  built if:
+  - its notionals, weights and asset_ids have different lengths;
+  - they hold non-finite or negative values;
+  - the notionals do not sum to `portfolio_value`;
+  - the weights differ from notional / total;
+  - its dropped dates are not real dates.
+- **Changes 1 and 2 as planned**, in `numeric_check.py`:
+  - A `$` or currency-code token matches only money. A `%` token matches
+    only rates × 100. A `N day(s)`/`día(s)` token matches only
+    `horizon_days`, exactly. Unmarked tokens match anything.
+  - The mandatory negative test ("5-day" when `alpha = 0.95`) was run
+    against the previous check and passed there, as did nine other
+    wrong-unit and wrong-day cases.
+- **Dates compared whole.** `as_of`'s year, month and day are no longer in
+  the pool (see the v1.1.0 notes). ISO, "January 5, 2024" and
+  "5 January 2024" are recognised; the prompt asks for ISO.
+- **Asset identifiers are names.** The digits of "7203.T" are not
+  scanned. Purely numeric identifiers are still scanned, since skipping
+  them would also skip every invented copy.
+- **A lexical guard** (`llm/claims.py`) for claims a `RiskResult` cannot
+  support, which the numeric check cannot see:
+  - It covers six categories (attribution, diversification, correlation,
+    model quality, advice, guarantee), matched case-insensitively at word
+    boundaries, with un-/in-/non- counted as part of the word.
+  - It runs on every explanation, single-asset or portfolio.
+  - A match is a 502 with the category named in the body.
+  - It rejects negations too. It does not catch a paraphrase that avoids
+    every stem (see `docs/architecture.md`).
+  - An LLM as the judge was ruled out as non-deterministic.
+- **Context budget.** Every request sends `num_ctx` and `num_predict`.
+  - Before the call, the prompt is bounded by its UTF-8 bytes plus 32
+    tokens. Byte-level BPE has no token shorter than a byte, and the chat
+    template adds 16 tokens, measured. With `num_predict`, the bound must
+    fit in `num_ctx`, or the request is a 422.
+  - A response cut off at `num_predict` is a 503.
+  - The worst case the limits allow fits: 50 assets with long identifiers
+    and 50 dropped dates, each missing 49 assets. The bound (2,986 plus
+    512) and the real `prompt_eval_count` both fit in 4096: the real
+    count is 1,226 tokens, under the design target of 1,500 (744 for
+    k = 3, 352 for a single-asset prompt). The real
+    count is checked by `tests/integration/test_ollama_explain.py`, the
+    project's first test against the real model: opt-in with the `ollama`
+    marker and never run in CI.
+- **The lexical list was closed on a measurement**, not on judgement:
+  - *Setup.* 432 explanations from qwen3:8b over the production path: 36
+    results (six engines, single-asset and k = 2, 5, 12, 50), four each,
+    three runs, every rejection read.
+  - *False rejections.* 5 (1.2%), all on portfolio results and all the
+    same kind: "may affect the reliability of the estimate", drawn from a
+    flagged diagnostic. A prompt rule against it did not reduce it and
+    was withdrawn.
+  - *The stems stay.* `reliab` and `accura` stay on the list, because
+    they are what rejects "the estimate is reliable".
+  - *Single-asset explanations.* The guard never fired on one.
+  - *True rejections.* The numeric check caught four:
+    - a tail written as "15%";
+    - "1 out of every 100 days" said of an ES;
+    - twice, the observations-per-asset ratio read as days of history,
+      after which that line was relabelled as a ratio.
+
 ## 8. Invariants
 
 - **`risk/` stays pure and deterministic.** `Portfolio` is a data-layer

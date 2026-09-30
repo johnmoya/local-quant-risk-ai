@@ -166,10 +166,33 @@ Request flow (`api/routers/explain.py`):
    re-runs its `__post_init__` invariants — a resubmitted result that
    somehow violates them (e.g. a negative `value`) is rejected the same
    way a freshly computed one would be.
-2. `llm.explain.generate_explanation` prompts Ollama and runs the
-   mandatory post-hoc numeric-consistency check
-   (`llm.numeric_check`, mandatory per `docs/roadmap.md` M7) before
-   returning.
+2. `llm.facts` builds the facts the prompt shows and the checks accept:
+   - A single-asset result shows every field, plus each scalar metadata
+     value.
+   - A **portfolio result** (more than one `asset_id`, exactly as a
+     `/portfolio/*` endpoint returned it) shows a summary of bounded
+     size:
+     - the ten largest positions, with notional and weight;
+     - the diagnostics its method has;
+     - the number of dropped dates, the first five of them, and the
+       assets missing on each.
+
+     Its `metadata.notionals`, `metadata.weights`, `asset_ids` and
+     `portfolio_value` must agree with each other, and
+     `metadata.dropped_dates` must be real dates. An edited or
+     inconsistent result is a 422.
+3. The prompt, plus `QUANT_RISK_AI_OLLAMA_NUM_PREDICT`, must fit in
+   `QUANT_RISK_AI_OLLAMA_NUM_CTX`, bounded by its size in bytes. If it
+   might not, the request is a 422 before Ollama is called. This only
+   happens with thousands of characters of identifiers or metadata, or a
+   misconfigured window.
+4. `llm.explain.generate_explanation` prompts Ollama and runs both
+   mandatory post-hoc guards before returning:
+   - the numeric-consistency check (`llm.numeric_check`, mandatory per
+     `docs/roadmap.md` M7): every number must be a fact, in its own unit;
+   - the unsupported-claim guard (`llm.claims`).
+
+   What they do and do not cover is in `docs/architecture.md`.
 
 **Failure isolation**: `/explain` can fail in ways the numeric endpoints
 never do, and those failures are deliberately *not* folded into the
@@ -178,9 +201,13 @@ first):
 
 | Exception | HTTP status | Meaning |
 |---|---|---|
-| `LLMUnavailableError` | 503 | Ollama unreachable, timed out, or returned something this client can't parse — a downstream dependency failure, not the caller's fault |
-| `NumericConsistencyError` | 502 | The model's explanation contained a number that doesn't reconcile with the source `RiskResult` — the mandatory M7 safeguard rejecting an untrustworthy upstream response |
-| any other `QuantRiskAIError` | 422 | Malformed/invalid input, same as the risk endpoints |
+| `LLMUnavailableError` | 503 | Ollama unreachable, timed out, returned something this client can't parse, or stopped at `num_predict` before finishing the explanation — a downstream dependency failure, not the caller's fault |
+| `NumericConsistencyError` | 502 | The model's explanation contained a number or date that doesn't reconcile with the source `RiskResult`, or a figure written in the wrong unit (`$60` for a 60% weight, a "5-day" horizon when the horizon is 1) — the mandatory M7 safeguard rejecting an untrustworthy upstream response. The `detail` quotes each offending figure as written |
+| `UnsupportedClaimError` | 502, with `category` | The explanation asserts something the result cannot support. `category` is one of `attribution`, `diversification`, `correlation`, `model_quality`, `advice`, `guarantee`, and `detail` quotes the word that matched |
+| any other `QuantRiskAIError` | 422 | Malformed/invalid input, same as the risk endpoints, including an inconsistent portfolio result and a prompt too large for the context window |
+
+A 502 is worth retrying: the model samples a different text each time,
+and the same result usually passes on the next call.
 
 A 503 or 502 from `/explain` says nothing about the risk calculation
 itself — the `RiskResult` the caller already has remains valid; only its
@@ -301,6 +328,7 @@ the form `{"detail": "<message>"}`:
 | request body over the limit | 413 |
 | `LLMUnavailableError` (`/explain` only) | 503 |
 | `NumericConsistencyError` (`/explain` only) | 502 |
+| `UnsupportedClaimError` (`/explain` only) | 502, with `category` |
 | anything not a `QuantRiskAIError` | 500, body `{"detail": "Internal server error"}` — a genuine bug, logged at ERROR with a full traceback (see "Logging" below) rather than left to leak framework-specific error output |
 
 ## Logging
@@ -310,9 +338,9 @@ configured once at API startup and written to stdout — the primary view
 into a `docker compose`-run instance (see M8's "Running with Docker" in
 the root `README.md`). Every request gets one `"request completed"` line
 (`method`, `path`, `status_code`, `duration_ms`), regardless of outcome
-including a 500; the four exception handlers above each add their own
+including a 500; the exception handlers above each add their own
 line first (`INFO` for a 422 — expected client-input rejection, not an
-operational concern; `WARNING` for the two `/explain`-specific failures;
+operational concern; `WARNING` for the three `/explain`-specific failures;
 `ERROR` with a traceback for anything unhandled). `QUANT_RISK_AI_LOG_LEVEL`
 (default `INFO`) controls the root logger's level — see `.env.example`.
 Deliberately not used inside `risk/*`: see `docs/architecture.md`'s note

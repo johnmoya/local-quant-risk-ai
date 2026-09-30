@@ -73,6 +73,53 @@ post-hoc numeric-consistency check (`quant_risk_ai.llm.numeric_check`) before
 it can be returned — this is the concrete, tested safeguard for the
 principle, not a best-effort convention.
 
+### What the explanation guards cover, and what they do not (M11.6)
+
+Two deterministic gates run on every explanation, single-asset or
+portfolio, and either one refuses it with a 502. Both are fed by one fact
+sheet (`llm/facts.py`), the same one the prompt is rendered from. The
+model is never shown a number the check would reject, and the check
+accepts no number the model was not shown.
+
+- **`numeric_check`: every figure is accounted for, in its own unit.**
+  - Every number in the text must match a fact within 1% (or 0.005
+    absolute).
+  - `$` or the currency code: only money. `%`: only rates and weights.
+    `N day(s)`: only `horizon_days`, exactly. Unmarked: any fact.
+  - Dates are compared whole, and asset identifiers are skipped as
+    names.
+- **`claims`: nothing is asserted that the result cannot support.** A
+  fixed list of stems covers:
+  - attribution to an asset;
+  - correlation or hedging;
+  - diversification;
+  - model quality;
+  - advice;
+  - guarantees.
+
+What is **not** covered, deliberately stated so nobody reads more into a
+200 than it means:
+
+- **An invented unmarked number equal to some fact passes.** For example,
+  an invented observation count that happens to equal a notional written
+  without its currency. The partition is permissive for unmarked numbers,
+  because a strict one would reject a sound "100,000 USD" written without
+  the symbol.
+- **An invented figure within tolerance of a real one passes.**
+- **A number is checked for existence, not meaning.** "AAPL's VaR is
+  60.00%" reconciles, because 60.00% is AAPL's weight. What the check
+  guarantees is "no number in the text is unaccounted for", not "every
+  number means what the sentence says".
+- **A paraphrase that avoids every stem passes the lexical guard.**
+  "Spreading the holdings lowers the loss" makes a diversification claim
+  with no listed word. A negation of a listed claim is rejected, which is
+  the safe direction.
+- **Qualitative misstatements of a listed fact pass.** For example,
+  calling the expected tail count the actual one.
+
+Using an LLM to judge the text was ruled out: it is not deterministic,
+and it would put a model back in the path that verifies the model.
+
 **The risk engine also has zero *logging* calls, for the same "no I/O"
 reason it has zero LLM calls: `risk/*` is meant to stay pure-function
 computation, callable from a script, a notebook, or a test without a

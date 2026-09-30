@@ -164,6 +164,19 @@ one above will take proportionally longer.
   unreachable (not running, wrong URL, or a network problem); a longer
   timeout will not fix it.
 
+**Context window.** Every request sets the model's context window and
+output cap instead of inheriting the server's defaults:
+`QUANT_RISK_AI_OLLAMA_NUM_CTX` (default `4096`) and
+`QUANT_RISK_AI_OLLAMA_NUM_PREDICT` (default `512`). Ollama does not fail
+when prompt plus output overflow the window; it silently drops the start
+of the prompt, where the instructions are. So `/explain` checks that the
+prompt fits before calling it, and answers 422 when it might not. A
+response cut off at the output cap is a 503. The largest prompt the limits
+allow (50 assets) measures 1,226 tokens, so the defaults leave ample room.
+To check against your own Ollama, run
+`QUANT_RISK_AI_OLLAMA_TESTS=1 uv run pytest -m ollama`; these tests are
+never run by default or in CI.
+
 The numeric endpoints are unaffected either way, by design. Note that the
 first `/explain` call after `docker compose exec ollama ollama pull
 qwen3:8b` is the slowest one you'll see.
