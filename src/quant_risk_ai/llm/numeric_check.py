@@ -20,6 +20,7 @@ import re
 from datetime import date
 
 from quant_risk_ai.core.exceptions import NumericConsistencyError
+from quant_risk_ai.llm.facts import FactSheet, Unit, build_fact_sheet
 from quant_risk_ai.risk.results import RiskResult
 
 # Dates are compared whole, never as loose year/month/day numbers: with the
@@ -60,34 +61,18 @@ _DEFAULT_REL_TOL = 0.01
 _DEFAULT_ABS_TOL = 0.005
 
 
-def expected_dates(result: RiskResult) -> set[date]:
-    """Every date the text may mention: `as_of`."""
-    return {result.as_of}
-
-
-def expected_numbers(result: RiskResult) -> set[float]:
-    """Every number that would be a legitimate reference to `result`:
-    each scalar field verbatim, `confidence_level` (and its complement)
-    in both fraction and percentage form since either is natural prose,
-    and any numeric metadata value (also in percentage form, if it looks
-    like a rate). Dates are not here: see `expected_dates`.
+def expected_numbers(facts: FactSheet) -> set[float]:
+    """Every number that would be a legitimate reference to the facts:
+    each fact verbatim (the confidence level and its complement), plus the
+    percentage form of rates and of any other fraction, since either is
+    natural prose. Dates are not here: they are compared whole.
     """
-    numbers: set[float] = {
-        result.value,
-        result.confidence_level,
-        result.confidence_level * 100,
-        1.0 - result.confidence_level,
-        (1.0 - result.confidence_level) * 100,
-        float(result.horizon_days),
-        result.portfolio_value,
-        float(result.n_observations),
-    }
-    for value in result.metadata.values():
-        if isinstance(value, bool) or not isinstance(value, int | float):
-            continue
-        numbers.add(float(value))
-        if 0.0 < value < 1.0:
-            numbers.add(value * 100)
+    numbers: set[float] = set()
+    for fact in facts.numbers:
+        for form in fact.forms:
+            numbers.add(form)
+            if fact.unit is Unit.RATE or 0.0 < form < 1.0:
+                numbers.add(form * 100)
     return numbers
 
 
@@ -146,11 +131,11 @@ def verify_numeric_consistency(
     return path of every generated explanation, never behind an
     if/optional check.
     """
+    facts = build_fact_sheet(result)
     dates, remaining = _extract_dates(text)
-    allowed_dates = expected_dates(result)
-    unmatched_dates = sorted({str(d) for d in dates if d not in allowed_dates})
+    unmatched_dates = sorted({str(d) for d in dates if d not in facts.dates})
 
-    expected = expected_numbers(result)
+    expected = expected_numbers(facts)
     unmatched = sorted(
         {
             candidate
