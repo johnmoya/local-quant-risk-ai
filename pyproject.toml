@@ -50,7 +50,12 @@ packages = ["src/quant_risk_ai"]
 [tool.pytest.ini_options]
 pythonpath = ["src"]
 testpaths = ["tests"]
-addopts = "-ra --strict-markers"
+# Tests against a real Ollama are deselected by default (CI has none); run
+# them with `QUANT_RISK_AI_OLLAMA_TESTS=1 pytest -m ollama`.
+addopts = "-ra --strict-markers -m 'not ollama'"
+markers = [
+    "ollama: needs a running Ollama with the configured model (see tests/integration)",
+]
 
 [tool.ruff]
 target-version = "py311"
