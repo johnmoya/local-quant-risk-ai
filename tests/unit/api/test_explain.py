@@ -110,3 +110,26 @@ def test_explain_multi_asset_result_is_refused_before_calling_ollama(client):
     assert response.status_code == 422
     assert "multi-asset" in response.json()["detail"]
     assert calls == []
+
+
+def test_explain_unsupported_claim_returns_502_naming_the_category(client):
+    app.dependency_overrides[get_ollama_client] = lambda: _client_returning(
+        "At the 99% confidence level, the 1-day VaR for AAPL is 1234.56; "
+        "diversification keeps it low."
+    )
+
+    response = client.post("/explain", json=_VALID_RESULT)
+
+    assert response.status_code == 502
+    body = response.json()
+    assert body["category"] == "diversification"
+    assert "diversification" in body["detail"]
+
+
+def test_explain_numeric_inconsistency_502_has_no_category(client):
+    app.dependency_overrides[get_ollama_client] = lambda: _client_returning("The VaR is 9999.99.")
+
+    response = client.post("/explain", json=_VALID_RESULT)
+
+    assert response.status_code == 502
+    assert "category" not in response.json()

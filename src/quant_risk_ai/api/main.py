@@ -15,7 +15,9 @@ error: LLMUnavailableError (Ollama unreachable/timed out/unusable
 response) is a downstream dependency failure -> 503; NumericConsistencyError
 (a generated explanation's numbers don't reconcile with its source
 RiskResult) is the mandatory safeguard from docs/roadmap.md M7 catching an
-untrustworthy upstream response -> 502. FastAPI dispatches to the most
+untrustworthy upstream response -> 502, and so is UnsupportedClaimError
+(the explanation asserts something the result cannot support), whose 502
+also names the category. FastAPI dispatches to the most
 specific registered handler in the exception's MRO, so these take
 precedence over the generic QuantRiskAIError handler below.
 
@@ -48,6 +50,7 @@ from quant_risk_ai.core.exceptions import (
     NumericConsistencyError,
     PortfolioMethodsFailedError,
     QuantRiskAIError,
+    UnsupportedClaimError,
 )
 from quant_risk_ai.core.logging import configure_logging
 
@@ -135,6 +138,17 @@ async def _numeric_consistency_handler(
         extra={"path": request.url.path, "detail": str(exc)},
     )
     return JSONResponse(status_code=502, content={"detail": str(exc)})
+
+
+@app.exception_handler(UnsupportedClaimError)
+async def _unsupported_claim_handler(request: Request, exc: UnsupportedClaimError) -> JSONResponse:
+    # Same 502 as a numeric inconsistency, with the category as a field so
+    # a caller can tell which guard refused the explanation.
+    logger.warning(
+        "generated explanation made an unsupported claim",
+        extra={"path": request.url.path, "detail": str(exc), "category": exc.category},
+    )
+    return JSONResponse(status_code=502, content={"detail": str(exc), "category": exc.category})
 
 
 def _json_safe(value: Any) -> Any:

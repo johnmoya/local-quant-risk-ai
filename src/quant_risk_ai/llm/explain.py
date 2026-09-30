@@ -3,13 +3,15 @@
 Every explanation returned by this module has passed numeric_check.py's
 verification against its source RiskResult (mandatory, per docs/roadmap.md
 M7 — not an optional/best-effort step). On Ollama failure
-(LLMUnavailableError) or a failed numeric check (NumericConsistencyError),
-this module lets the exception propagate rather than silently returning
-unverified text.
+(LLMUnavailableError), a failed numeric check (NumericConsistencyError) or
+an unsupported claim (UnsupportedClaimError, see claims.py), this module
+lets the exception propagate rather than silently returning unverified
+text.
 """
 
 from __future__ import annotations
 
+from quant_risk_ai.llm.claims import verify_no_unsupported_claims
 from quant_risk_ai.llm.numeric_check import verify_numeric_consistency
 from quant_risk_ai.llm.ollama_client import OllamaClient
 from quant_risk_ai.llm.prompt_templates import build_explanation_prompt
@@ -24,8 +26,11 @@ def generate_explanation(result: RiskResult, client: OllamaClient) -> str:
             unusable response.
         NumericConsistencyError: the generated text contains a number that
             doesn't reconcile with `result`.
+        UnsupportedClaimError: the generated text asserts something
+            `result` cannot support (see claims.py).
     """
     prompt = build_explanation_prompt(result)
     text = client.generate(prompt)
     verify_numeric_consistency(text, result)
+    verify_no_unsupported_claims(text)
     return text

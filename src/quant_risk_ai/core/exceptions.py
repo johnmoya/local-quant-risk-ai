@@ -105,3 +105,20 @@ class NumericConsistencyError(LLMError):
     docs/roadmap.md M7: an explanation that fails this check must never
     reach the caller.
     """
+
+
+class UnsupportedClaimError(LLMError):
+    """A generated explanation asserts something its source RiskResult
+    cannot support — attribution of risk to an asset, correlation,
+    diversification, model quality, advice, a guarantee (see
+    quant_risk_ai.llm.claims). Same status as NumericConsistencyError,
+    502, with the category named so a caller can tell the two apart.
+    """
+
+    def __init__(self, category: str, term: str):
+        self.category = category
+        self.term = term
+        super().__init__(
+            f"Generated explanation makes a claim the RiskResult does not support "
+            f"({category}: {term!r})"
+        )

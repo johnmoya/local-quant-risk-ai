@@ -7,7 +7,11 @@ from datetime import date
 import httpx
 import pytest
 
-from quant_risk_ai.core.exceptions import LLMUnavailableError, NumericConsistencyError
+from quant_risk_ai.core.exceptions import (
+    LLMUnavailableError,
+    NumericConsistencyError,
+    UnsupportedClaimError,
+)
 from quant_risk_ai.llm.explain import generate_explanation
 from quant_risk_ai.llm.ollama_client import OllamaClient
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
@@ -60,4 +64,13 @@ def test_ollama_failure_propagates():
     client = OllamaClient(model="qwen3:8b", client=http_client)
 
     with pytest.raises(LLMUnavailableError):
+        generate_explanation(_RESULT, client)
+
+
+def test_unsupported_claim_propagates_even_when_every_number_reconciles():
+    client = _client_returning(
+        "At the 99% confidence level, the 1-day VaR for AAPL is 1234.56, a reliable estimate."
+    )
+
+    with pytest.raises(UnsupportedClaimError, match="model_quality"):
         generate_explanation(_RESULT, client)
