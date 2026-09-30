@@ -36,8 +36,7 @@ _RULES = (
     "calculate, round, convert, add up, invent, or infer any number that is "
     "not explicitly listed here.\n"
     "- Write dates exactly as listed, in YYYY-MM-DD form.\n"
-    "- Refer to each asset only by its identifier, exactly as listed; do not "
-    "expand it into a company or index name.\n"
+    "{identifier_rule}"
     "- Describe the horizon as an N-day horizon, N being horizon_days. "
     "Describe the sample as a number of observations, never as days.\n"
     "- Say only what is listed. Do not mention risk contributions, marginal "
@@ -46,9 +45,23 @@ _RULES = (
     "guarantees, not even to say they are absent."
 )
 
+# Portfolio prompts only. Without it the model expanded SPY into
+# "S&P 500 (SPY)" and the 500 was rejected (3 of 30 explanations of the
+# quickstart's Monte Carlo VaR; 0 of 30 with it). In the single-asset
+# prompt the same line made things worse: a Monte Carlo explanation
+# misread its 300 observations as "3,000" in 15 of 60 runs, against 0 of 60
+# without it. Measured against qwen3:8b before v1.1.0.
+_IDENTIFIER_RULE = (
+    "- Refer to each asset only by its identifier, exactly as listed; do not "
+    "expand it into a company or index name.\n"
+)
+
 
 def build_explanation_prompt(result: RiskResult) -> str:
     """Build the fixed prompt for a single RiskResult explanation."""
     facts = build_fact_sheet(result)
-    task = _PORTFOLIO_TASK if facts.is_portfolio else _SINGLE_ASSET_TASK
-    return f"{task}\n\n{_RULES}\n\n" + "\n".join(facts.lines) + "\n\nExplanation:"
+    if facts.is_portfolio:
+        task, rules = _PORTFOLIO_TASK, _RULES.format(identifier_rule=_IDENTIFIER_RULE)
+    else:
+        task, rules = _SINGLE_ASSET_TASK, _RULES.format(identifier_rule="")
+    return f"{task}\n\n{rules}\n\n" + "\n".join(facts.lines) + "\n\nExplanation:"

@@ -60,10 +60,16 @@ def test_prompt_omits_metadata_line_when_empty():
     assert "metadata" not in prompt
 
 
-def test_prompt_asks_for_assets_by_identifier_only():
-    # Measured: asked nothing, the model expanded SPY into "S&P 500", and the
-    # 500 was rejected as an invented number.
-    prompt = build_explanation_prompt(_RESULT)
+def test_only_the_portfolio_prompt_asks_for_assets_by_identifier():
+    # Measured: without it, the model expanded SPY into "S&P 500" in
+    # portfolio explanations; with it, single-asset explanations misread
+    # 300 observations as "3,000". So portfolio prompts only.
+    from tests.unit.llm._portfolio import make_portfolio, run
 
-    assert "only by its identifier" in prompt
-    assert "do not expand it into a company or index name" in prompt
+    portfolio_prompt = build_explanation_prompt(run("historical-VaR", make_portfolio(3)))
+    single_prompt = build_explanation_prompt(_RESULT)
+
+    assert "only by its identifier" in portfolio_prompt
+    assert "do not expand it into a company or index name" in portfolio_prompt
+    assert "identifier" not in single_prompt
+    assert "{" not in single_prompt and "{" not in portfolio_prompt
