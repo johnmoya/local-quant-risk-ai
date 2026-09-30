@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import math
 import re
+from dataclasses import dataclass
 from datetime import date
 
 from quant_risk_ai.core.exceptions import NumericConsistencyError
@@ -55,7 +56,20 @@ _DAY = r"(\d{1,2})(?:st|nd|rd|th)?"
 _ISO_DATE_RE = re.compile(r"\b(\d{4})-(\d{2})-(\d{2})\b")
 _MONTH_FIRST_RE = re.compile(rf"\b{_MONTH}\s+{_DAY},?\s+(\d{{4}})\b", re.IGNORECASE)
 _DAY_FIRST_RE = re.compile(rf"\b{_DAY}\s+{_MONTH},?\s+(\d{{4}})\b", re.IGNORECASE)
-_NUMBER_RE = re.compile(r"[-+]?\$?\d[\d,]*\.?\d*%?")
+
+# A number and the unit it is written in (M11.6, docs/design_m11.md §7).
+# `$` or the result's currency code before or after it: money. `%` after
+# it: a rate. "day(s)"/"día(s)" after it, with or without a hyphen: the
+# horizon. None of those: unmarked. The currency code is filled in per
+# result, so the pattern is built by `_token_re`.
+_TOKEN_TEMPLATE = (
+    r"(?P<code_pre>\b{code}\b\s?)?"
+    r"(?P<sign>[-+])?(?P<dollar>\$\s?)?"
+    r"(?P<num>\d[\d,]*(?:\.\d+)?)"
+    r"(?P<pct>\s?%)?"
+    r"(?P<day>\s?-?\s?(?:days?|d[ií]as?)\b)?"
+    r"(?P<code_post>\s?\b{code}\b)?"
+)
 
 _DEFAULT_REL_TOL = 0.01
 _DEFAULT_ABS_TOL = 0.005
@@ -98,21 +112,60 @@ def _extract_dates(text: str) -> tuple[list[date | str], str]:
     return dates, text
 
 
+@dataclass(frozen=True)
+class _Token:
+    text: str
+    value: float
+    unit: Unit | None
+    """None when unmarked; PLAIN is never used for a token."""
+
+
+def _token_re(currency: str) -> re.Pattern[str]:
+    return re.compile(_TOKEN_TEMPLATE.format(code=re.escape(currency)), re.IGNORECASE)
+
+
+def _extract_tokens(text: str, currency: str = "USD") -> list[_Token]:
+    tokens: list[_Token] = []
+    for match in _token_re(currency).finditer(text):
+        value = float(match["num"].replace(",", ""))
+        if match["sign"] == "-":
+            value = -value
+        unit: Unit | None
+        if match["day"]:
+            unit = Unit.HORIZON
+        elif match["pct"]:
+            unit = Unit.RATE
+        elif match["dollar"] or match["code_pre"] or match["code_post"]:
+            unit = Unit.CURRENCY
+        else:
+            unit = None
+        tokens.append(_Token(text=match.group().strip(), value=value, unit=unit))
+    return tokens
+
+
 def _extract_numbers(text: str) -> list[float]:
-    numbers: list[float] = []
-
-    for match in _NUMBER_RE.finditer(text):
-        token = match.group().strip("$%").replace(",", "")
-        if token in ("", "-", "+"):
-            continue
-        numbers.append(float(token))
-
-    return numbers
+    return [token.value for token in _extract_tokens(text)]
 
 
-def _matches_any(candidate: float, expected: set[float], *, rel_tol: float, abs_tol: float) -> bool:
+def _candidates(unit: Unit | None, facts: FactSheet) -> set[float]:
+    """What a token written in `unit` may match. The partition is
+    permissive (docs/design_m11.md §7): a unit marker narrows the match to
+    facts of that kind, an unmarked token may match anything, because a
+    strict rule would reject a sound "100,000 in USD terms"."""
+    if unit is None:
+        return expected_numbers(facts)
+    if unit is Unit.RATE:
+        return {form * 100 for f in facts.numbers if f.unit is Unit.RATE for form in f.forms}
+    return {form for f in facts.numbers if f.unit is unit for form in f.forms}
+
+
+def _matches(token: _Token, facts: FactSheet, *, rel_tol: float, abs_tol: float) -> bool:
+    candidates = _candidates(token.unit, facts)
+    if token.unit is Unit.HORIZON:
+        # A day count is the horizon exactly or nothing: no tolerance.
+        return token.value in candidates
     return any(
-        math.isclose(candidate, value, rel_tol=rel_tol, abs_tol=abs_tol) for value in expected
+        math.isclose(token.value, value, rel_tol=rel_tol, abs_tol=abs_tol) for value in candidates
     )
 
 
@@ -135,12 +188,11 @@ def verify_numeric_consistency(
     dates, remaining = _extract_dates(text)
     unmatched_dates = sorted({str(d) for d in dates if d not in facts.dates})
 
-    expected = expected_numbers(facts)
     unmatched = sorted(
         {
-            candidate
-            for candidate in _extract_numbers(remaining)
-            if not _matches_any(candidate, expected, rel_tol=rel_tol, abs_tol=abs_tol)
+            token.text
+            for token in _extract_tokens(remaining, result.currency)
+            if not _matches(token, facts, rel_tol=rel_tol, abs_tol=abs_tol)
         }
     )
     if unmatched or unmatched_dates:
