@@ -3,21 +3,42 @@
 [![CI](https://github.com/johnmoya/local-quant-risk-ai/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/johnmoya/local-quant-risk-ai/actions/workflows/ci.yml?query=branch%3Amaster)
 
 A local, deterministic quantitative risk engine — Historical, Parametric, and
-Monte Carlo VaR, Expected Shortfall, and VaR backtesting — exposed through a
-FastAPI service, with an Ollama-backed (Qwen3 8B) layer that explains results
-in natural language.
+Monte Carlo VaR, Expected Shortfall, and VaR backtesting, for single assets
+and multi-asset portfolios — exposed through a FastAPI service, with an
+Ollama-backed (Qwen3 8B) layer that explains results in natural language.
 
 **Core principle**: the LLM never performs risk calculations. VaR, ES, and
 backtesting are deterministic Python (numpy/pandas/scipy). The LLM only
 interprets already-computed, already-validated structured results. This
 boundary is enforced by an architectural test
-(`tests/unit/risk/test_no_llm_dependency.py`) and, starting M7, by a
-mandatory numeric-consistency check on every generated explanation.
+(`tests/unit/risk/test_no_llm_dependency.py`) and by two mandatory,
+deterministic checks on every generated explanation: every number must be
+one the result contains, in its own unit, and no sentence may claim what
+the result cannot support (see "What an explanation guarantees" below).
 
 See `docs/architecture.md` for the full design and `docs/roadmap.md` for
 scope decisions and milestones.
 
 ## Status
+
+**`v1.1.0` — Multi-asset portfolios (M11).**
+- **Portfolios.** Long-only portfolios of assets in one currency, given as
+  notionals.
+  - Alignment is a common window, then the intersection of dates inside
+    it, reported per asset and per dropped date.
+  - Historical VaR/ES run on the portfolio return series. Parametric uses
+    `wᵀΣw` with a guarded sample covariance. Monte Carlo draws
+    multivariate normals via Cholesky.
+  - A one-position portfolio reproduces the single-asset figures:
+    historical exactly, the other two methods to within 16 ulps.
+- **Endpoints.** `/portfolio/*`: one method per call, or `/portfolio/risk`
+  for several methods and metrics at once, all or nothing.
+- **Limits.** Request-size limits apply on every endpoint (413/422), and
+  the `api` container is memory-capped.
+- **Explanations.** `/explain` narrates portfolio results as well, behind
+  stricter guards.
+- **Behavior changes.** See `CHANGELOG.md` for everything that behaves
+  differently from `v1.0.2`.
 
 **`v1.0.2` — Classical Quant Risk Engine (M0–M10).** Patch releases on
 `v1.0.0`, none of which change any risk figure. `v1.0.1`: CSV dates are
@@ -49,16 +70,65 @@ Quant Risk + ML Engineering platform).
 
 ```
 src/quant_risk_ai/
-├── data/    # price loading, returns computation (single-asset in v1)
+├── data/    # price loading, returns, portfolios and their alignment
 ├── risk/    # deterministic VaR / ES / backtesting engine — no I/O, no LLM
-├── llm/     # Ollama client + prompt templates; consumes RiskResult only
+├── llm/     # Ollama client, fact sheet + prompts, the two explanation guards
 ├── api/     # FastAPI routers over risk/ and llm/
 └── core/    # shared logging and exceptions
+examples/
+└── portfolio_3_assets.json   # the quickstart's /portfolio/risk request
+scripts/
+└── make_portfolio_example.py # how that file was generated (seeded)
 docker/
 ├── Dockerfile        # multi-stage build for the api image (see below)
 └── volumes/ollama/   # bind-mounted Ollama model storage (gitignored)
 docker-compose.yml    # api + ollama services
 ```
+
+## Quickstart
+
+Requirements: Docker with Compose v2, `curl` and `jq` (see "Requirements"
+at the end).
+
+```bash
+git clone https://github.com/johnmoya/local-quant-risk-ai.git
+cd local-quant-risk-ai
+docker compose up -d --build --wait               # api + ollama; ~40 s to healthy
+docker compose exec ollama ollama pull qwen3:8b   # first run only, ~5 GB
+
+# Risk of a three-asset portfolio: three methods x VaR and ES, in one call.
+curl -s -X POST localhost:8000/portfolio/risk \
+  -H 'Content-Type: application/json' \
+  --data-binary @examples/portfolio_3_assets.json > risk.json
+
+# Explain one of the results (here the first, historical VaR).
+jq '.results[0]' risk.json | curl -s -X POST localhost:8000/explain \
+  -H 'Content-Type: application/json' --data-binary @-
+```
+
+`examples/portfolio_3_assets.json` holds a year of daily log returns for
+AAPL, MSFT and SPY. The notionals are 500,000, 300,000 and 200,000 USD, and
+MSFT has two missing days, which alignment drops and reports. The request
+asks for 99% confidence, a 1-day horizon, and a Monte Carlo seed of 42
+with 100,000 simulations. It returns:
+
+| Method | VaR (USD) | ES (USD) |
+|---|---|---|
+| historical | 30,257.78 | 34,167.97 |
+| parametric | 33,533.38 | 38,435.42 |
+| monte_carlo | 33,715.99 | 38,797.30 |
+
+These are exactly the figures the test suite computes in-process
+(`tests/unit/api/test_portfolio_example.py`). A stack built from a clean
+clone returned them identically, every field of every result.
+
+- **`/portfolio/risk`** answers in about 25 ms.
+- **`/explain`** takes about 28 s on the first call on CPU, which loads the
+  model, then about 15–20 s per portfolio explanation (see "Explanations
+  and hardware").
+
+Each result carries its alignment, weights and diagnostics in `metadata`.
+`docs/api_reference.md` documents every endpoint.
 
 ## Development setup
 
@@ -132,8 +202,8 @@ request limits behind those figures are listed in `docs/api_reference.md`.
 
 ## Explanations and hardware
 
-The numeric endpoints (`/var`, `/expected-shortfall`, `/backtest`) are
-plain numpy/scipy and answer in milliseconds on any machine. **`/explain`
+The numeric endpoints (`/var`, `/expected-shortfall`, `/backtest`,
+`/portfolio/*`) are plain numpy/scipy and answer in milliseconds on any machine. **`/explain`
 runs Qwen3 8B locally, and that is the part whose speed depends on your
 hardware.** The stack runs on CPU out of the box — no GPU required — but
 expect to wait.
@@ -176,6 +246,43 @@ allow (50 assets) measures 1,226 tokens, so the defaults leave ample room.
 To check against your own Ollama, run
 `QUANT_RISK_AI_OLLAMA_TESTS=1 uv run pytest -m ollama`; these tests are
 never run by default or in CI.
+
+**Portfolio explanations take longer.** The prompt is larger and the
+answer runs three to five sentences. Measured through `POST /explain` on
+the quickstart example, on CPU with the stack from a clean clone: 28 s for
+the first call, which loads the model, then 15–21 s per call.
+
+### What an explanation guarantees
+
+Two deterministic checks run on every explanation before it is returned,
+and either one turns it into a **502**:
+
+- **Every figure is accounted for, in its own unit.**
+  - Every number must be one the result contains, within 1%.
+  - Money written with `$` or the currency code must be an amount, and a
+    `%` must be a rate or weight.
+  - "N-day" must be the horizon.
+  - Dates must be the result's dates, whole.
+- **Nothing is claimed that the result cannot support.** A fixed word list
+  rejects attribution of risk to an asset, diversification, correlation or
+  hedging, calibration or backtesting, advice and guarantees. The 502
+  names the category.
+
+What they **do not** guarantee (details in `docs/architecture.md`):
+
+- An invented number that happens to equal some fact and is written
+  without a unit passes.
+- A real number used with the wrong meaning passes.
+- A paraphrase that avoids every listed word passes.
+
+What they cost, measured against qwen3:8b with every rejection read (see
+`CHANGELOG.md`):
+
+- **408 explanations, one sound one refused.** It said "258 days" for 258
+  observations, which the horizon rule refuses.
+- **One wrong one caught.** It said "the worst 15%" for a 5% tail.
+
+A 502 is worth a retry: each call samples a new text.
 
 The numeric endpoints are unaffected either way, by design. Note that the
 first `/explain` call after `docker compose exec ollama ollama pull
@@ -365,3 +472,4 @@ which log level each failure mode uses.
 - Ollama with the `qwen3:8b` model pulled — either natively for local dev,
   or inside the `ollama` container per "Running with Docker" above — for
   the `/explain` endpoint
+- `curl` and `jq` for the quickstart's commands
