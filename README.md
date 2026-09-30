@@ -123,8 +123,8 @@ These are exactly the figures the test suite computes in-process
 clone returned them identically, every field of every result.
 
 - **`/portfolio/risk`** answers in about 25 ms.
-- **`/explain`** takes about 28 s on the first call on CPU, which loads the
-  model, then about 15–20 s per portfolio explanation (see "Explanations
+- **`/explain`** takes 24–28 s on the first call on CPU, which loads the
+  model, then about 13–21 s per portfolio explanation (see "Explanations
   and hardware").
 
 Each result carries its alignment, weights and diagnostics in `metadata`.
@@ -249,8 +249,8 @@ never run by default or in CI.
 
 **Portfolio explanations take longer.** The prompt is larger and the
 answer runs three to five sentences. Measured through `POST /explain` on
-the quickstart example, on CPU with the stack from a clean clone: 28 s for
-the first call, which loads the model, then 15–21 s per call.
+the quickstart example, on CPU with the stack from a clean clone (two runs): 24–28 s for
+the first call, which loads the model, then 13–21 s per call.
 
 ### What an explanation guarantees
 
