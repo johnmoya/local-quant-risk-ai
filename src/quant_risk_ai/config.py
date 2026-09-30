@@ -42,6 +42,18 @@ OLLAMA_CONNECT_TIMEOUT_SECONDS: float = float(
     os.environ.get("QUANT_RISK_AI_OLLAMA_CONNECT_TIMEOUT_SECONDS", "5")
 )
 
+# Context window and output cap sent with every request (M11.6), instead of
+# inheriting whatever the Ollama server defaults to. The prompt and the
+# output share the window, and Ollama does not fail when they overflow it:
+# it silently drops the start of the prompt, which is where the
+# instructions are. The explanation prompt is kept well under
+# NUM_CTX - NUM_PREDICT (checked before every call, see llm/explain.py, and
+# measured against the real tokenizer in tests/integration). 4096 is what
+# Qwen3 8B ran with here by default; 512 tokens is several times a
+# three-to-five-sentence explanation.
+OLLAMA_NUM_CTX: int = int(os.environ.get("QUANT_RISK_AI_OLLAMA_NUM_CTX", "4096"))
+OLLAMA_NUM_PREDICT: int = int(os.environ.get("QUANT_RISK_AI_OLLAMA_NUM_PREDICT", "512"))
+
 # Request-size limits (v1.1.0). Monte Carlo's peak memory is ~24 bytes per
 # simulated cell (standard draws, their Cholesky product and the shifted
 # returns coexist), so an unbounded n_simulations is an out-of-memory

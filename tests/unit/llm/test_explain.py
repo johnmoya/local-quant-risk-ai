@@ -8,12 +8,14 @@ import httpx
 import pytest
 
 from quant_risk_ai.core.exceptions import (
+    InvalidParameterError,
     LLMUnavailableError,
     NumericConsistencyError,
     UnsupportedClaimError,
 )
-from quant_risk_ai.llm.explain import generate_explanation
+from quant_risk_ai.llm.explain import generate_explanation, prompt_token_bound
 from quant_risk_ai.llm.ollama_client import OllamaClient
+from quant_risk_ai.llm.prompt_templates import build_explanation_prompt
 from quant_risk_ai.risk.results import RiskMethod, RiskMetric, RiskResult
 
 _RESULT = RiskResult(
@@ -74,3 +76,41 @@ def test_unsupported_claim_propagates_even_when_every_number_reconciles():
 
     with pytest.raises(UnsupportedClaimError, match="model_quality"):
         generate_explanation(_RESULT, client)
+
+
+def _counting_client(num_ctx: int, num_predict: int) -> tuple[OllamaClient, list[httpx.Request]]:
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={"response": "The VaR is 1234.56."})
+
+    http_client = httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="http://ollama.local"
+    )
+    client = OllamaClient(
+        model="qwen3:8b", client=http_client, num_ctx=num_ctx, num_predict=num_predict
+    )
+    return client, calls
+
+
+def test_a_prompt_that_exactly_fits_the_context_budget_is_sent():
+    needed = prompt_token_bound(build_explanation_prompt(_RESULT)) + 100
+    client, calls = _counting_client(num_ctx=needed, num_predict=100)
+
+    generate_explanation(_RESULT, client)
+
+    assert len(calls) == 1
+
+
+def test_a_prompt_one_token_over_the_budget_is_refused_before_calling_ollama():
+    needed = prompt_token_bound(build_explanation_prompt(_RESULT)) + 100
+    client, calls = _counting_client(num_ctx=needed - 1, num_predict=100)
+
+    with pytest.raises(InvalidParameterError, match="too large to explain"):
+        generate_explanation(_RESULT, client)
+    assert calls == []
+
+
+def test_the_token_bound_counts_bytes_not_characters():
+    assert prompt_token_bound("é") == prompt_token_bound("ab")

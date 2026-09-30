@@ -5,6 +5,7 @@ to substitute the HTTP boundary instead of talking to a real Ollama
 instance.
 """
 
+import json
 import logging
 
 import httpx
@@ -156,3 +157,41 @@ def test_connection_failure_logs_warning(caplog):
     records = [r for r in caplog.records if "Ollama request failed" in r.message]
     assert records, [r.message for r in caplog.records]
     assert records[0].levelname == "WARNING"
+
+
+def test_generate_sends_the_context_window_and_output_cap():
+    seen: list[dict] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(json.loads(request.read()))
+        return httpx.Response(200, json={"response": "text", "done_reason": "stop"})
+
+    http_client = httpx.Client(transport=httpx.MockTransport(handler), base_url="http://o")
+    OllamaClient(model="m", client=http_client, num_ctx=2048, num_predict=128).generate("p")
+    _client(handler).generate("p")
+
+    assert seen[0]["options"] == {"num_ctx": 2048, "num_predict": 128}
+    assert seen[1]["options"] == {
+        "num_ctx": config.OLLAMA_NUM_CTX,
+        "num_predict": config.OLLAMA_NUM_PREDICT,
+    }
+
+
+def test_default_client_takes_the_context_settings_from_config(monkeypatch):
+    monkeypatch.setattr(config, "OLLAMA_NUM_CTX", 8192)
+    monkeypatch.setattr(config, "OLLAMA_NUM_PREDICT", 256)
+
+    client = create_default_client()
+
+    assert (client.num_ctx, client.num_predict) == (8192, 256)
+
+
+def test_a_response_cut_off_at_num_predict_is_unavailable_not_returned(caplog):
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200, json={"response": "At the 99% confidence level, the", "done_reason": "length"}
+        )
+
+    with caplog.at_level(logging.WARNING), pytest.raises(LLMUnavailableError, match="num_predict"):
+        _client(handler).generate("prompt")
+    assert "truncated" in caplog.text

@@ -133,3 +133,25 @@ def test_explain_numeric_inconsistency_502_has_no_category(client):
 
     assert response.status_code == 502
     assert "category" not in response.json()
+
+
+def test_explain_result_too_large_for_the_context_is_422_without_calling_ollama(client):
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(200, json={"response": "irrelevant"})
+
+    http_client = httpx.Client(
+        transport=httpx.MockTransport(handler), base_url="http://ollama.local"
+    )
+    app.dependency_overrides[get_ollama_client] = lambda: OllamaClient(
+        model="qwen3:8b", client=http_client
+    )
+    payload = {**_VALID_RESULT, "asset_ids": ["A" * 20_000]}
+
+    response = client.post("/explain", json=payload)
+
+    assert response.status_code == 422
+    assert "too large to explain" in response.json()["detail"]
+    assert calls == []

@@ -39,13 +39,21 @@ class OllamaClient:
 
     model: str
     client: httpx.Client
+    num_ctx: int = config.OLLAMA_NUM_CTX
+    num_predict: int = config.OLLAMA_NUM_PREDICT
 
     def generate(self, prompt: str, *, think: bool = False) -> str:
         start = time.perf_counter()
         try:
             response = self.client.post(
                 "/api/generate",
-                json={"model": self.model, "prompt": prompt, "stream": False, "think": think},
+                json={
+                    "model": self.model,
+                    "prompt": prompt,
+                    "stream": False,
+                    "think": think,
+                    "options": {"num_ctx": self.num_ctx, "num_predict": self.num_predict},
+                },
             )
             response.raise_for_status()
             payload = response.json()
@@ -77,6 +85,19 @@ class OllamaClient:
             raise LLMUnavailableError(
                 f"Ollama response is missing the 'response' field: {payload!r}"
             ) from exc
+
+        if payload.get("done_reason") == "length":
+            # Cut off at num_predict: the text ends mid-sentence, and every
+            # number in it may still reconcile, so the checks downstream
+            # would let it through.
+            logger.warning(
+                "Ollama response truncated at num_predict",
+                extra={"model": self.model, "num_predict": self.num_predict},
+            )
+            raise LLMUnavailableError(
+                f"Ollama stopped after num_predict={self.num_predict} tokens without "
+                f"finishing the explanation (see QUANT_RISK_AI_OLLAMA_NUM_PREDICT)"
+            )
 
         duration_ms = round((time.perf_counter() - start) * 1000, 2)
         logger.info(
@@ -111,4 +132,9 @@ def create_default_client() -> OllamaClient:
             config.OLLAMA_TIMEOUT_SECONDS, connect=config.OLLAMA_CONNECT_TIMEOUT_SECONDS
         ),
     )
-    return OllamaClient(model=config.OLLAMA_MODEL, client=http_client)
+    return OllamaClient(
+        model=config.OLLAMA_MODEL,
+        client=http_client,
+        num_ctx=config.OLLAMA_NUM_CTX,
+        num_predict=config.OLLAMA_NUM_PREDICT,
+    )
