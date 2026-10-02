@@ -123,7 +123,7 @@ These are exactly the figures the test suite computes in-process
 clone returned them identically, every field of every result.
 
 - **`/portfolio/risk`** answers in about 25 ms.
-- **`/explain`** takes 24–28 s on the first call on CPU, which loads the
+- **`/explain`** takes 22–28 s on the first call on CPU, which loads the
   model, then about 13–21 s per portfolio explanation (see "Explanations
   and hardware").
 
@@ -194,10 +194,22 @@ no meaning inside the `api` container.
 
 **Memory.** `api` is capped at 2 GiB with no extra swap
 (`mem_limit`/`memswap_limit`) and restarts itself (`restart:
-unless-stopped`). The process needs ~155 MB, and the largest request the
-API accepts adds ~490 MB, so the cap holds about three of those at once;
-beyond it the container is OOM-killed and restarted rather than exhausting
-the host. `ollama` is not capped, since its footprint is the model's. The
+unless-stopped`). Measured from a clean clone, as the container's own
+`/sys/fs/cgroup/memory.peak`:
+
+| Workload | Peak |
+|---|---|
+| Fresh process | 126–132 MiB |
+| The quickstart: `/portfolio/risk`, then `/explain` on all six results | 133 MiB |
+| The largest request the limits allow: 50 assets × 5,000 observations, three methods × VaR and ES, 1e7 Monte Carlo cells | 617 MiB |
+
+That last request finished with a 200 in 3.5 s and no OOM kill
+(`oom_kill 0` in `memory.events`, no restart). Other shapes at the limits
+peaked lower: 1e6 simulations over 10 assets at 399 MiB, and a full 16 MiB
+body at 433–439 MiB (single-asset Monte Carlo ES, Christoffersen
+backtest). The cap holds the process plus about three of the largest
+requests at once; beyond it the container is OOM-killed and restarted
+rather than exhausting the host. `ollama` is not capped, since its footprint is the model's. The
 request limits behind those figures are listed in `docs/api_reference.md`.
 
 ## Explanations and hardware
@@ -249,8 +261,9 @@ never run by default or in CI.
 
 **Portfolio explanations take longer.** The prompt is larger and the
 answer runs three to five sentences. Measured through `POST /explain` on
-the quickstart example, on CPU with the stack from a clean clone (two runs): 24–28 s for
-the first call, which loads the model, then 13–21 s per call.
+the quickstart example, on CPU with the stack from a clean clone (three
+runs): 22–28 s for the first call, which loads the model, then 13–21 s per
+call.
 
 ### What an explanation guarantees
 
