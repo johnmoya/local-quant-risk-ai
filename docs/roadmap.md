@@ -49,7 +49,7 @@ formats in `data/loaders.py` (see `docs/math_reference.md`), Docker base
 images pinned by digest, `uv sync --locked` in CI, the `risk/` no-I/O rule
 enforced by test, and CI on Python 3.11/3.12 including release tags.
 
-### `v1.1.0` release notes (in progress, unreleased)
+### `v1.1.0` release notes (released)
 
 `v1.1.0` closes M11 (multi-asset portfolios). Changes to existing
 behavior, which callers may notice:
