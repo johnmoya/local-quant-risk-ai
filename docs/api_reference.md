@@ -266,9 +266,11 @@ The rejected value is echoed as the string `'inf'`, `'-inf'` or `'nan'`.
 | positions × `n_simulations` | 10,000,000 | 422 naming both factors |
 
 The last one exists because Monte Carlo memory scales with the product
-(~24 bytes per simulated cell at peak). Measured worst case the limits
-allow — 50 × 5,000 observations, all methods and metrics, 1e7 cells
-through `/portfolio/risk` — is about 490 MB on top of a ~155 MB process.
+(~24 bytes per simulated cell at peak). Measured from a clean clone, as
+the container's own `/sys/fs/cgroup/memory.peak`: the largest request the
+limits allow — 50 assets × 5,000 observations, three methods × VaR and ES,
+1e7 Monte Carlo cells through `/portfolio/risk` — peaks at 617 MiB, on a
+process that starts at ~130 MiB (see "Memory" in the README).
 
 **Alignment is reported, never silent.** Dates are intersected (never
 filled), and every result's `metadata` accounts for each asset's

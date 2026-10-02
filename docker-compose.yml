@@ -27,9 +27,11 @@ services:
       dockerfile: docker/Dockerfile
     ports:
       - "8000:8000"
-    # Measured: ~155 MB after import; the worst single request the request
-    # limits allow adds ~490 MB (660 MB peak). 2g holds the baseline plus
-    # three such requests at once. Beyond that the kernel OOM-kills this
+    # Measured from a clean clone, as the container's own
+    # /sys/fs/cgroup/memory.peak: ~130 MiB for a fresh process, and 617 MiB
+    # at peak for the largest request the limits allow (see the README's
+    # "Memory"). The cap holds the process plus about three of the largest
+    # requests at once. Beyond that the kernel OOM-kills this
     # container rather than exhausting the host (or the WSL VM, taking every
     # other container with it), and `restart` brings it back.
     # memswap_limit equal to mem_limit means no swap on top: without it the
