@@ -42,7 +42,7 @@ from fastapi.encoders import jsonable_encoder
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, Response
 
-from quant_risk_ai import config
+from quant_risk_ai import __version__, config
 from quant_risk_ai.api.body_limit import BodySizeLimitMiddleware
 from quant_risk_ai.api.routers import backtest, expected_shortfall, explain, portfolio, var
 from quant_risk_ai.core.exceptions import (
@@ -63,6 +63,9 @@ app = FastAPI(
         "Single-asset and multi-asset portfolio VaR and Expected Shortfall, "
         "VaR backtesting, and Ollama-backed natural-language explanations."
     ),
+    # Without it FastAPI reports its own default, "0.1.0", whatever the
+    # package's version is.
+    version=__version__,
 )
 
 # Registered before the logging middleware below, which makes it the inner

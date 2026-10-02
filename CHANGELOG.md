@@ -175,6 +175,11 @@ A 502 is worth a retry, since each call samples a new text.
   line endings (see the v1.1.0 notes in `docs/roadmap.md`). History was
   not rewritten and there is no ignore-revs file. `.gitattributes` now
   enforces LF.
+- **The package declares its release version.** `pyproject.toml` says
+  `1.1.0`, the OpenAPI document reads it from the installed package, and
+  CI fails a `v*` tag that does not match it. `v1.0.0`–`v1.0.2` declared
+  `0.1.0` in the package (and OpenAPI showed FastAPI's default, also
+  `0.1.0`); those tags are not re-tagged.
 - **Dependencies.** `httpx2` joins the `dev` extra for Starlette's
   `TestClient`, and Starlette moves from 1.6.0 to 1.7.0. The suite runs
   warning-free under `pytest -W error`.

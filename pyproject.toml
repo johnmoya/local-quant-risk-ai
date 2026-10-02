@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "quant-risk-ai"
-version = "0.1.0"
+version = "1.1.0"
 description = "Local quantitative risk analytics engine (VaR, ES, backtesting) with a FastAPI service and an Ollama-backed natural-language explanation layer."
 readme = "README.md"
 requires-python = ">=3.11"
