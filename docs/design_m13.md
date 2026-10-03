@@ -400,9 +400,12 @@ The information set is {r_s : s ≤ t−1}.
   σ = σ̂ (ddof 1) must equal `parametric_var` on the same window **bit for
   bit**.
 - **FHS vs historical:** FHS with constant σ must equal
-  `historical_var`/`historical_expected_shortfall` within **≤ 4 ulps**.
-  The bound is measured: the test sweeps c over 8 orders of magnitude and
-  α ∈ {0.95, 0.99, 0.999}.
+  `historical_var` within **≤ 4 ulps** and `historical_expected_shortfall`
+  within **≤ 18 ulps**. The bounds are measured: over 40,290 cases (c over
+  8 orders of magnitude, α ∈ {0.95, 0.99, 0.999}, n ∈ {250, 1000, 2000})
+  the maximum was 2 ulps for VaR and 6 for ES. ES divides every tail value
+  by c before averaging, one more rounding per value, so the
+  pre-registered 4 held for VaR and not for ES (§13).
 - **Mutation:** with `method="lower"` the FHS test must fail.
 
 ### 6.1 Fit residuals (M13) vs out-of-sample forecast residuals (M14) — adjustment (c)
@@ -667,6 +670,7 @@ is no aggregate score and no "winner".
 | 2026-10-03 | §3.3 | Overlap criterion 1e-10 replaced by max \|Δr\| ≤ 2e-6 and the price ratio within ±2e-6 of its median (G1-1) | Before | Yahoo delivers single-precision prices; 1e-10 is unattainable |
 | 2026-10-03 | §6.1, §11 | GARCH-FHS-OOS added, descriptive, outside the Holm families (G1-2) | Before | Residual-construction confound against M14 |
 | 2026-10-03 | §9 | The regime threshold is exact only in the reference environment; elsewhere it is Level B (ulp bound, exact partition) | Before | It is 1 ulp different without AVX-512, because the pre-2015 log returns come from `np.log` |
+| 2026-10-03 | §6 | FHS ≡ historical tolerance: VaR keeps ≤ 4 ulps; ES becomes ≤ 18 ulps | Before | Measured maximum 6 ulps for ES (2 for VaR) over 40,290 cases; the bound is ~3× the measurement, as with every other ulp bound here |
 
 ## 14. Carried to M14 (decided in the M14.0 pre-registration, not here)
 
