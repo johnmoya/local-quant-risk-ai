@@ -43,6 +43,15 @@ research = [
     "yfinance>=1.7",
     "matplotlib>=3.8",
 ]
+# M13/M14 model estimation (docs/design_m13.md §12), also research-only:
+# arch fits GARCH(1,1) and xgboost (CPU-only wheel, no CUDA/NCCL) the M14
+# forecasts. risk/ never imports either; it receives fitted parameters, so
+# the API and its Docker image do not change. CI installs this extra so
+# the fitting tests run on both legs.
+forecasting = [
+    "arch>=7.2",
+    "xgboost-cpu>=2.1",
+]
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/quant_risk_ai"]
