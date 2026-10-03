@@ -27,12 +27,14 @@ cells says more anyway.
 import csv
 import hashlib
 import io
+import os
 import platform
 import sys
 from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib.metadata import version
 
+import pytest
 from numpy.lib.introspect import opt_func_info
 
 from tests.unit.risk._helpers import ulps_between
@@ -59,6 +61,21 @@ class ReferenceEnvironment:
     pandas: str
     machine: str
     log_dispatch: str
+
+
+# Where the SPY baseline was generated (its summary.json records Python
+# 3.11.16, numpy 2.4.6 and pandas 3.0.5 on x86_64; scipy 1.17.1 is what
+# uv.lock resolves for 3.11), plus the one CPU property shown to change its
+# bits. The figures pre-registered in docs/design_m13.md from the extended
+# data (the regime threshold) were computed in the same environment.
+SPY_REFERENCE = ReferenceEnvironment(
+    python="3.11",
+    numpy="2.4.6",
+    scipy="1.17.1",
+    pandas="3.0.5",
+    machine="x86_64",
+    log_dispatch="X86_V4",
+)
 
 
 def log_dispatch() -> str:
@@ -99,6 +116,16 @@ def level_a_decision(
     if environ.get(REQUIRE_LEVEL_A) == "1":
         return "fail", f"{REQUIRE_LEVEL_A}=1 but {reason}"
     return "skip", reason
+
+
+def require_level_a(reference: ReferenceEnvironment) -> None:
+    """Run the calling Level A test, skip it, or fail it (see
+    level_a_decision). Call it first in a Level A test or fixture."""
+    decision, reason = level_a_decision(current_environment(), reference, os.environ)
+    if decision == "fail":
+        pytest.fail(reason)
+    if decision == "skip":
+        pytest.skip(reason)
 
 
 def sha256(data: bytes) -> str:

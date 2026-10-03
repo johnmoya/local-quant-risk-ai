@@ -26,7 +26,6 @@ its version.
 """
 
 import json
-import os
 import sys
 from collections.abc import Callable
 from dataclasses import replace
@@ -38,12 +37,14 @@ from research.rolling_backtest import main
 
 from tests.research._reproducibility import (
     REQUIRE_LEVEL_A,
+    SPY_REFERENCE,
     ReferenceEnvironment,
     csv_differences,
     current_environment,
     first_byte_difference,
     json_differences,
     level_a_decision,
+    require_level_a,
     sha256,
 )
 
@@ -60,17 +61,7 @@ COMMITTED_SHA256 = {
     COMMITTED / "summary.json": "a219b3067dd16b6d7db0e6543422050ccb84670d6031d753bb9bdb6767013342",
 }
 
-# Where the baseline was generated (summary.json records Python 3.11.16,
-# numpy 2.4.6 and pandas 3.0.5 on x86_64; scipy 1.17.1 is what uv.lock
-# resolves for 3.11), plus the one CPU property shown to change its bits.
-REFERENCE = ReferenceEnvironment(
-    python="3.11",
-    numpy="2.4.6",
-    scipy="1.17.1",
-    pandas="3.0.5",
-    machine="x86_64",
-    log_dispatch="X86_V4",
-)
+REFERENCE = SPY_REFERENCE
 
 # Recorded by build_summary from the clock and the interpreter, not computed
 # from the data.
@@ -115,11 +106,7 @@ def _without_run_environment(summary: dict, source: dict) -> dict:
 def level_a() -> None:
     """Level A tests run only in the reference environment. Elsewhere they
     skip, except under gate.sh (REQUIRE_LEVEL_A=1), where they fail."""
-    decision, reason = level_a_decision(current_environment(), REFERENCE, os.environ)
-    if decision == "fail":
-        pytest.fail(reason)
-    if decision == "skip":
-        pytest.skip(reason)
+    require_level_a(REFERENCE)
 
 
 @pytest.fixture(scope="module")
