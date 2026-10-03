@@ -676,6 +676,12 @@ is no aggregate score and no "winner".
 | 2026-10-03 | §6.1, §11 | GARCH-FHS-OOS added, descriptive, outside the Holm families (G1-2) | Before | Residual-construction confound against M14 |
 | 2026-10-03 | §9 | The regime threshold is exact only in the reference environment; elsewhere it is Level B (ulp bound, exact partition) | Before | It is 1 ulp different without AVX-512, because the pre-2015 log returns come from `np.log` |
 | 2026-10-03 | §6 | FHS ≡ historical tolerance: VaR keeps ≤ 4 ulps; ES becomes ≤ 18 ulps | Before | Measured maximum 6 ulps for ES (2 for VaR) over 40,290 cases; the bound is ~3× the measurement, as with every other ulp bound here |
+| 2026-10-03 | §5 | GARCH filtering starts at ω + (α+β)·b, b being arch's backcast, not at b itself | Before | That is arch's own convention; with it the filter reproduces arch's whole in-sample path (1e-12), not just its last forecast |
+| 2026-10-03 | §6.1 | The GARCH-FHS-OOS pre-OOS schedule refits first on the first day of the residual window (2012-01-10), then on the first trading day of each month up to 2015-12-01 | Before | Clarification: every s in the first residual window needs parameters in force at s |
+| 2026-10-03 | §7 | Acerbi–Székely p-value = (1 + #{Z2_m ≤ Z2}) / (M + 1). The frozen Monte Carlo series is simulated as N(μ̂, σ̂) on its window, like the frozen parametric one, and the frozen historical series by resampling its 250-day window | Before | Clarification of "simulated under each model's own predictive distribution"; the formula is never 0 |
+| 2026-10-03 | §8 | Holm rejects at adjusted p ≤ 0.05. A Diebold–Mariano test that is undefined (zero long-run variance) is reported as such and left out of its family's adjustment | Before | Clarification |
+| 2026-10-03 | §9 | Reaction time: for each high-vol episode (a maximal run of high-vol days), the days from its first day until sqrt(252·σ̂²_t) ≥ RV22_{t−1}, or "never" within the episode. Overshoot: the mean of sqrt(252·σ̂²_t)/RV22_{t−1} − 1 over the 22 days after the episode ends | Before | Operational definitions of the §9 terms |
+| 2026-10-03 | §10 | H4 per model is *supported* when the QL DM FHS vs Normal is significant after Holm in FHS's favour **and** the FHS series does not reject Kupiec at 5% | Before | Clarification of "QL DM plus Kupiec"; the evaluation decides H1–H4 mechanically (research/volatility/report.py) |
 
 ## 14. Carried to M14 (decided in the M14.0 pre-registration, not here)
 
