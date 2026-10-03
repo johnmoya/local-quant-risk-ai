@@ -29,6 +29,7 @@ import hashlib
 import io
 import platform
 import sys
+from collections.abc import Mapping
 from dataclasses import dataclass
 from importlib.metadata import version
 
@@ -74,6 +75,30 @@ def current_environment() -> ReferenceEnvironment:
         machine=platform.machine(),
         log_dispatch=log_dispatch(),
     )
+
+
+# gate.sh sets this to 1: on the development machine Level A must run, so
+# an environment that cannot run it is a failure there, not a skip.
+REQUIRE_LEVEL_A = "QUANT_RISK_AI_REQUIRE_LEVEL_A"
+
+
+def level_a_decision(
+    environment: ReferenceEnvironment,
+    reference: ReferenceEnvironment,
+    environ: Mapping[str, str],
+) -> tuple[str, str]:
+    """Whether Level A runs here: ("run" | "skip" | "fail", reason).
+
+    Outside the reference environment Level A is skipped, unless
+    REQUIRE_LEVEL_A is set, in which case it fails: a skip would let a
+    commit through gate.sh without the byte-for-byte check it relies on.
+    """
+    if environment == reference:
+        return "run", ""
+    reason = f"Level A needs {reference}; this is {environment}"
+    if environ.get(REQUIRE_LEVEL_A) == "1":
+        return "fail", f"{REQUIRE_LEVEL_A}=1 but {reason}"
+    return "skip", reason
 
 
 def sha256(data: bytes) -> str:

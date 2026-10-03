@@ -26,6 +26,7 @@ its version.
 """
 
 import json
+import os
 import sys
 from collections.abc import Callable
 from dataclasses import replace
@@ -36,11 +37,13 @@ import pytest
 from research.rolling_backtest import main
 
 from tests.research._reproducibility import (
+    REQUIRE_LEVEL_A,
     ReferenceEnvironment,
     csv_differences,
     current_environment,
     first_byte_difference,
     json_differences,
+    level_a_decision,
     sha256,
 )
 
@@ -98,11 +101,6 @@ EXCEPTION_COLUMNS = ("historical_exception", "parametric_exception", "monte_carl
 MEASURED_MAX_ULPS = 3
 MAX_ULPS = 10
 
-level_a = pytest.mark.skipif(
-    current_environment() != REFERENCE,
-    reason=f"Level A needs {REFERENCE}; this is {current_environment()}",
-)
-
 
 def _dump(summary: dict) -> str:
     # The serialisation main() uses for summary.json.
@@ -111,6 +109,17 @@ def _dump(summary: dict) -> str:
 
 def _without_run_environment(summary: dict, source: dict) -> dict:
     return {key: source[key] if key in RUN_ENVIRONMENT_FIELDS else summary[key] for key in summary}
+
+
+@pytest.fixture
+def level_a() -> None:
+    """Level A tests run only in the reference environment. Elsewhere they
+    skip, except under gate.sh (REQUIRE_LEVEL_A=1), where they fail."""
+    decision, reason = level_a_decision(current_environment(), REFERENCE, os.environ)
+    if decision == "fail":
+        pytest.fail(reason)
+    if decision == "skip":
+        pytest.skip(reason)
 
 
 @pytest.fixture(scope="module")
@@ -145,7 +154,7 @@ def test_python_3_11_still_resolves_the_reference_libraries():
 # --- Level A ---------------------------------------------------------------
 
 
-@level_a
+@pytest.mark.usefixtures("level_a")
 def test_level_a_backtest_results_csv_byte_for_byte(regenerated: Path):
     committed = (COMMITTED / "backtest_results.csv").read_bytes()
     produced = (regenerated / "backtest_results.csv").read_bytes()
@@ -154,7 +163,7 @@ def test_level_a_backtest_results_csv_byte_for_byte(regenerated: Path):
     assert sha256(produced) == sha256(committed), first_byte_difference(committed, produced)
 
 
-@level_a
+@pytest.mark.usefixtures("level_a")
 def test_level_a_summary_byte_for_byte_outside_the_run_environment(regenerated: Path):
     committed_text = (COMMITTED / "summary.json").read_text(encoding="utf-8")
     produced_text = (regenerated / "summary.json").read_text(encoding="utf-8")
@@ -190,6 +199,35 @@ def test_off_the_reference_cpu_alone_the_csv_really_differs(regenerated: Path):
         f"Level A was skipped for log_dispatch={environment.log_dispatch} alone, "
         "yet the CSV is byte-identical to the committed one"
     )
+
+
+@pytest.mark.parametrize(
+    ("environment", "environ", "expected"),
+    [
+        pytest.param(REFERENCE, {REQUIRE_LEVEL_A: "1"}, "run", id="reference-required"),
+        pytest.param(REFERENCE, {}, "run", id="reference"),
+        pytest.param(
+            replace(REFERENCE, log_dispatch="X86_V3"),
+            {REQUIRE_LEVEL_A: "1"},
+            "fail",
+            id="cpu-required",
+        ),
+        pytest.param(replace(REFERENCE, log_dispatch="X86_V3"), {}, "skip", id="cpu"),
+        pytest.param(
+            replace(REFERENCE, python="3.12"), {REQUIRE_LEVEL_A: "1"}, "fail", id="py-required"
+        ),
+        pytest.param(
+            replace(REFERENCE, numpy="2.5.3"), {REQUIRE_LEVEL_A: "0"}, "skip", id="flag-off"
+        ),
+    ],
+)
+def test_level_a_is_required_under_gate(
+    environment: ReferenceEnvironment, environ: dict[str, str], expected: str
+):
+    """gate.sh exports REQUIRE_LEVEL_A=1, so on the development machine an
+    environment that cannot run Level A stops the commit instead of
+    skipping the byte-for-byte check."""
+    assert level_a_decision(environment, REFERENCE, environ)[0] == expected
 
 
 # --- Level B ---------------------------------------------------------------

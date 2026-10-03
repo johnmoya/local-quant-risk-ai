@@ -93,6 +93,11 @@ the reference environment exists. Hence two levels.
   That includes every `gate.sh` commit on the development machine (AMD
   Ryzen 7 9700X, AVX-512), and any CI 3.11 job that lands on an AVX-512
   runner.
+- **Required under gate.sh (G1).** `gate.sh` runs pytest with
+  `QUANT_RISK_AI_REQUIRE_LEVEL_A=1`. With it set, an environment that
+  cannot run Level A **fails** the Level A tests instead of skipping them,
+  so no commit passes the gate without the byte-for-byte check. In CI the
+  variable is unset, and Level A runs or skips with the runner's CPU.
 - **Failure output:** a failure compares sha256 digests and reports the
   first differing byte and line, so it fails in seconds. Comparing the raw
   bytes took 42 minutes to fail in CI, because pytest diffed two ~600 KB
@@ -204,7 +209,7 @@ At a few sums per model per day, over 2,514 days and a 1,000-day residual
 window, that adds **about 0.1–0.3 s** to a full M13 walk-forward. That is
 negligible next to the monthly GARCH fits.
 
-**Proposal for M13.3 (decision at G1).**
+**Adopted at G1 (G1-3) for M13.3.**
 - **Reductions:** use `math.fsum` for the reductions in
   `risk/volatility.py`, and the EWMA weighted sum in particular instead
   of `np.dot`.
@@ -215,7 +220,11 @@ negligible next to the monthly GARCH fits.
   M13.3 tests it rather than assuming it.
 - **Test:** M13.3 adds a test that runs the pure functions in a
   subprocess under `NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL"` and
-  requires identical bits.
+  requires identical bits. The test runs on every CI leg, and compares
+  against bit patterns recorded on the development machine, so a runner
+  whose CPU gives other bits fails it.
+- **If `math.log` differs between runners** (QLIKE uses it, M13.5), that
+  is reported, and the affected figures move to Level B.
 - **What this does and does not buy:** it makes M13's own math
   CPU-independent. It does not do the same for arch or XGBoost.
 
@@ -235,7 +244,9 @@ negligible next to the monthly GARCH fits.
   - **sha256 `fbc1ebee8c5c61c6a7c68a31b08dd94af43542df178b592653cc3196bb2c8cbc`.**
 - **What M13.2 commits:** this exact file, not a fresh download, plus
   `SPY_prices_2000_2025.provenance.json` with the fields above. A test
-  pins the sha256.
+  pins the sha256. The provenance file states that Yahoo delivers these
+  prices at single precision (§3.3), so no figure derived from them is
+  more precise than about 1e-7 relative.
 
 ### 3.2 Splice (return space)
 
@@ -247,7 +258,7 @@ negligible next to the monthly GARCH fits.
 - **Test:** the OOS realised returns, and every return from 2015-01-05
   on, are **bit-identical** to the baseline's.
 
-### 3.3 Overlap check: the 1e-10 criterion fails, by vendor precision (decision at G1)
+### 3.3 Overlap check: the 1e-10 criterion fails, by vendor precision (G1-1: replaced)
 
 The approved design made a difference above 1e-10 on the overlapping
 returns a stop-and-decide event. The check fails:
@@ -278,16 +289,17 @@ returns a stop-and-decide event. The check fails:
   perturbation on returns with σ ≈ 1.1e-2 is about 1e-4 relative. That is
   the precision the vendor offers for any history.
 
-**Proposal.** Replace the criterion with one tied to the vendor's
-precision, at about 2× the observation:
+**Adopted at G1 (G1-1).** The criterion is replaced with one tied to the
+vendor's precision, at about 2× the observation:
 - max |Δr| ≤ **2e-6**;
 - the price ratio extended/frozen within **±2e-6** of its median.
 
 The second condition catches what matters: a revision or re-adjustment
 shows up as a level shift or a drift in the ratio, not as noise. The
 current download passes both: max |Δr| = 1.02e-6, and the ratio
-deviates from its median by at most 8.6e-7. If the criterion is rejected,
-the alternative is to stop M13.2 and look for a double-precision source.
+deviates from its median by at most 8.6e-7. A file that fails either
+condition stops the run (`research/volatility/data.py` raises); it is
+never spliced.
 
 ## 4. Conventions
 
@@ -430,19 +442,21 @@ of object for every model.
 - **What is not affected:** Normal-mapped series use σ_t alone, so the
   comparisons between them are unaffected.
 
-**Mitigation (proposed; decision at G1).** Add one descriptive sensitivity
-series, **GARCH-FHS-OOS**.
+**Mitigation (adopted at G1, G1-2).** One descriptive sensitivity series,
+**GARCH-FHS-OOS**, is added.
 - **Construction:** the same GARCH σ_t, with residuals z_s built from
   the σ_{s|s−1} that was actually forecast at *s* with the parameters in
   force at *s*. That makes it the M14 residual construction.
 - **What it needs:** the monthly refit schedule must start 1,000 trading
   days before the OOS (from about January 2012). Each of those fits needs
   1,000 returns before it, which the 2000 start provides.
-- **Role:** it is outside the hypothesis families (descriptive only). It
-  isolates the residual-construction effect for GARCH, and it is the
-  like-for-like GARCH reference for M14's FHS series.
-- **If it is declined:** the confound above is stated as a limitation
-  wherever GARCH-FHS is compared.
+- **Role:** descriptive only, and **outside the Holm families**: F1 and
+  F2 (§8) stay exactly as pre-registered. It isolates the
+  residual-construction effect for GARCH, and it is the like-for-like
+  GARCH reference for M14's FHS series. It exists for the primary
+  specification only.
+- **Pre-OOS refits:** the same validity rule and carry-forward policy as
+  §5 apply. If the first of these refits fails, the run stops.
 
 ## 7. Metrics
 
@@ -520,8 +534,16 @@ of §3.2:
 > **RV22 threshold = 0.224383438082287** (`0x1.cb898b429ea54p-3`),
 > i.e. ≈ 22.4% annualised.
 
-M13.7 recomputes it from the committed data, and a test requires this
-exact value. A changed threshold is a deviation (§13), not a refresh.
+A test (M13.2, G1-1 condition (b)) recomputes it from the committed
+files. The value is subject to the §2 contract, because the pre-2015
+log returns come from `np.log`:
+- **Level A** (reference environment): exactly `0x1.cb898b429ea54p-3`.
+- **Level B** (any other CPU): within a measured ulp bound, and the
+  high-vol/normal partition of all 2,514 OOS days identical. With AVX-512
+  disabled the threshold measured `0x1.cb898b429ea55p-3`, 1 ulp away, and
+  the partition was unchanged at 336 high-vol days.
+
+A changed threshold is a deviation (§13), not a refresh.
 
 **Partition.** An OOS day *t* is **high-vol** if RV22_{t−1} > threshold,
 otherwise **normal**. The two classes are disjoint and exhaustive.
@@ -616,8 +638,8 @@ Naive-FHS, EWMA-FHS, GARCH-FHS  ←→  Frozen Historical (reference)
 ```
 
 That gives 3 models × 2 distributions × {primary, W250} = 12 series, plus
-the frozen ones, plus GARCH-FHS-OOS if it is approved (§6.1). There is no
-aggregate score and no "winner".
+the frozen ones, plus the descriptive GARCH-FHS-OOS series (§6.1). There
+is no aggregate score and no "winner".
 
 ## 12. Artefacts and placement
 
@@ -642,7 +664,9 @@ aggregate score and no "winner".
 
 | Date | Section | Change | Before/after first OOS run | Reason |
 |---|---|---|---|---|
-| — | — | none yet | — | — |
+| 2026-10-03 | §3.3 | Overlap criterion 1e-10 replaced by max \|Δr\| ≤ 2e-6 and the price ratio within ±2e-6 of its median (G1-1) | Before | Yahoo delivers single-precision prices; 1e-10 is unattainable |
+| 2026-10-03 | §6.1, §11 | GARCH-FHS-OOS added, descriptive, outside the Holm families (G1-2) | Before | Residual-construction confound against M14 |
+| 2026-10-03 | §9 | The regime threshold is exact only in the reference environment; elsewhere it is Level B (ulp bound, exact partition) | Before | It is 1 ulp different without AVX-512, because the pre-2015 log returns come from `np.log` |
 
 ## 14. Carried to M14 (decided in the M14.0 pre-registration, not here)
 
@@ -663,10 +687,11 @@ aggregate score and no "winner".
 and M14 reads the M13 series from their artefact under the §2.3
 contract. Nothing from M13 is recomputed.
 
-## 15. Decisions requested at G1
+## 15. G1 decisions (approved 2026-10-03)
 
-| # | Decision | Recommendation |
+| # | Decision | Conditions |
 |---|---|---|
-| G1-1 | Overlap criterion (§3.3): replace 1e-10, which the vendor's single-precision data cannot meet, with max \|Δr\| ≤ 2e-6 and the price ratio within ±2e-6 of its median | Accept, and commit the downloaded file (sha256 `fbc1ebee…`) in M13.2 |
-| G1-2 | Add the descriptive GARCH-FHS-OOS sensitivity series (§6.1) | Accept: it removes the residual-construction confound against M14 at the cost of 48 extra monthly fits (January 2012 to December 2015) |
-| G1-3 | `math.fsum` and no dispatched ufuncs in `risk/volatility.py`, with a test that requires identical bits with AVX-512 disabled (§2.4) | Accept: about 0.1–0.3 s per run |
+| G1-1 | Overlap criterion max \|Δr\| ≤ 2e-6 and the price ratio within ±2e-6 of its median (§3.3) | Commit exactly the file with sha256 `fbc1ebee…`; a test recomputes the regime threshold from the committed files (§9); the provenance records that Yahoo delivers single-precision prices |
+| G1-2 | GARCH-FHS-OOS series (§6.1) | Descriptive only, outside the Holm families; F1 and F2 unchanged |
+| G1-3 | `math.fsum` and no vectorised dispatched functions in `risk/volatility.py` (§2.4) | The bit test runs on every CI leg; if `math.log` differs between runners, it is reported and that part moves to Level B |
+| — | Level A under `gate.sh` (§2.2) | `gate.sh` fails, rather than skips, when the local environment cannot run Level A; checked by mutation |
