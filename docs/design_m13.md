@@ -225,6 +225,11 @@ negligible next to the monthly GARCH fits.
   whose CPU gives other bits fails it.
 - **If `math.log` differs between runners** (QLIKE uses it, M13.5), that
   is reported, and the affected figures move to Level B.
+- **Measured in M13.5.** Near 1 (log-return arguments), numpy's AVX-512
+  `np.log` differs from glibc's `math.log` on 422 of 10,001 arguments;
+  numpy's AVX2 and baseline paths differ on none. In QLIKE's domain
+  (variances around 1e-4) all three agree on 2,000 of 2,000. `math.log` is
+  checked against recorded bits on every CI leg, near 1 included.
 - **What this does and does not buy:** it makes M13's own math
   CPU-independent. It does not do the same for arch or XGBoost.
 
