@@ -14,20 +14,37 @@ The first three are deterministic and compared under the two-level
 contract (docs/design_m13.md §2.3). Everything about the run environment
 goes to `run_metadata.json` only, which is never compared, so the content
 files carry no timestamp and no version string.
+
+**It runs once (G3, C1).** Before any computation it refuses to run, with
+`RunRefused`, unless:
+- this is the reference environment (`level_a_decision` in required mode);
+- `results/volatility/m13/` does not exist;
+- the working tree is clean;
+- the pre-registration commit is an ancestor of HEAD.
+
+Both commits go into `run_metadata.json`. There is no flag to override any
+of this, and the output directory is fixed.
 """
 
 from __future__ import annotations
 
-import argparse
 import json
 import platform
 import subprocess
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from importlib.metadata import version
 from pathlib import Path
 
 import pandas as pd
 
+from research.reproducibility import (
+    REQUIRE_LEVEL_A,
+    SPY_REFERENCE,
+    ReferenceEnvironment,
+    current_environment,
+    level_a_decision,
+)
 from research.rolling_backtest import DEFAULT_OUTPUT_DIR as BASELINE_DIR
 from research.volatility.data import (
     EXTENDED_PRICES,
@@ -38,8 +55,61 @@ from research.volatility.data import (
 from research.volatility.report import Evaluation, load_frozen_baseline
 from research.volatility.walk_forward import M13Config, WalkForward, run_walk_forward
 
-DEFAULT_OUTPUT_DIR = Path("results/volatility/m13")
+OUTPUT_DIR = Path("results/volatility/m13")
 BASELINE_CSV = BASELINE_DIR / "backtest_results.csv"
+
+# The commit report.PREREGISTRATION names: docs/design_m13.md with the G1
+# decisions recorded.
+PREREGISTRATION_COMMIT = "35008cad9fd0a8d80f3882554420978f09fb0304"
+# The M13 artefacts are generated where the baseline and the regime
+# threshold were (docs/design_m13.md §2.3).
+REFERENCE = SPY_REFERENCE
+
+
+class RunRefused(RuntimeError):
+    """A precondition of the single M13 run does not hold."""
+
+
+@dataclass(frozen=True)
+class Provenance:
+    head: str
+    preregistration: str
+
+
+def _git(repository: Path, *args: str) -> subprocess.CompletedProcess[str]:
+    return subprocess.run(
+        ["git", "-C", str(repository), *args], capture_output=True, text=True, check=False
+    )
+
+
+def check_preconditions(
+    output_dir: Path,
+    *,
+    environment: ReferenceEnvironment,
+    repository: Path,
+    preregistration: str = PREREGISTRATION_COMMIT,
+) -> Provenance:
+    """Raise RunRefused unless the run may go ahead; return the commits to
+    record."""
+    decision, reason = level_a_decision(environment, REFERENCE, {REQUIRE_LEVEL_A: "1"})
+    if decision != "run":
+        raise RunRefused(f"not the reference environment: {reason}")
+    if output_dir.exists():
+        raise RunRefused(f"{output_dir} already exists: M13.8 runs once")
+    status = _git(repository, "status", "--porcelain")
+    if status.returncode != 0:
+        raise RunRefused(f"git status failed: {status.stderr.strip()}")
+    if status.stdout.strip():
+        raise RunRefused(f"the working tree is not clean:\n{status.stdout}")
+    ancestor = _git(repository, "merge-base", "--is-ancestor", preregistration, "HEAD")
+    if ancestor.returncode != 0:
+        raise RunRefused(
+            f"the pre-registration commit {preregistration} is not an ancestor of HEAD"
+        )
+    head = _git(repository, "rev-parse", "HEAD")
+    if head.returncode != 0:
+        raise RunRefused(f"git rev-parse failed: {head.stderr.strip()}")
+    return Provenance(head=head.stdout.strip(), preregistration=preregistration)
 
 
 def dump_json(payload: dict) -> str:
@@ -56,21 +126,19 @@ def fit_log(walk_forward: WalkForward) -> pd.DataFrame:
 
 
 def write_outputs(walk_forward: WalkForward, evaluation: dict, output_dir: Path) -> None:
-    output_dir.mkdir(parents=True, exist_ok=True)
+    output_dir.mkdir(parents=True, exist_ok=False)
     walk_forward.frame.to_csv(output_dir / "forecasts.csv", index=False)
     fit_log(walk_forward).to_csv(output_dir / "garch_fit_log.csv", index=False)
     (output_dir / "evaluation.json").write_text(dump_json(evaluation), encoding="utf-8")
 
 
-def run_metadata(inputs: list[Path]) -> dict:
+def run_metadata(inputs: list[Path], provenance: Provenance) -> dict:
     from numpy.lib.introspect import opt_func_info
 
-    commit = subprocess.run(
-        ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=False
-    ).stdout.strip()
     return {
         "generated_at_utc": datetime.now(UTC).isoformat(timespec="seconds"),
-        "git_commit": commit or None,
+        "git_commit": provenance.head,
+        "preregistration_commit": provenance.preregistration,
         "environment": {
             "python": platform.python_version(),
             "platform": platform.platform(),
@@ -85,10 +153,9 @@ def run_metadata(inputs: list[Path]) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--output-dir", type=Path, default=DEFAULT_OUTPUT_DIR)
-    args = parser.parse_args()
-
+    provenance = check_preconditions(
+        OUTPUT_DIR, environment=current_environment(), repository=Path.cwd()
+    )
     config = M13Config()
     spliced = load_spliced_returns()
     returns = spliced.returns.returns
@@ -96,10 +163,10 @@ def main() -> None:
     frozen = load_frozen_baseline(BASELINE_CSV, walk_forward.frame["date"])
     evaluation = Evaluation(walk_forward, frozen, returns, config).build()
 
-    write_outputs(walk_forward, evaluation, args.output_dir)
-    metadata = run_metadata([EXTENDED_PRICES, FROZEN_PRICES, BASELINE_CSV])
-    (args.output_dir / "run_metadata.json").write_text(dump_json(metadata), encoding="utf-8")
-    print(f"wrote {args.output_dir}")
+    write_outputs(walk_forward, evaluation, OUTPUT_DIR)
+    metadata = run_metadata([EXTENDED_PRICES, FROZEN_PRICES, BASELINE_CSV], provenance)
+    (OUTPUT_DIR / "run_metadata.json").write_text(dump_json(metadata), encoding="utf-8")
+    print(f"wrote {OUTPUT_DIR}")
 
 
 if __name__ == "__main__":
