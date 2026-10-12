@@ -49,6 +49,48 @@ formats in `data/loaders.py` (see `docs/math_reference.md`), Docker base
 images pinned by digest, `uv sync --locked` in CI, the `risk/` no-I/O rule
 enforced by test, and CI on Python 3.11/3.12 including release tags.
 
+### `v1.2.0` release notes (pending release)
+
+`v1.2.0` closes M13 (volatility models), a pre-registered research
+milestone. No API endpoint, request schema, `RiskMethod` member, Docker
+image or v1/v1.1 figure changes.
+
+- **Process:**
+  - pre-registration `docs/design_m13.md` at `35008ca`;
+  - pre-OOS amendments ratified at G3 at `1af2fc5`;
+  - a single out-of-sample run (M13.8) at `e3121fc`, in the reference
+    environment;
+  - artefacts committed unmodified at `84d05fd`.
+- **Results** (`docs/results_m13.md`):
+  - H2 and H3 supported, H1 and H4 not supported.
+  - GARCH has the lowest QLIKE, significantly below EWMA and Naive after
+    Holm.
+  - FHS brings coverage to nominal for every model: 25–28 exceptions
+    against 25.14 expected, where the Normal series have 56–69.
+  - The quantile-loss DM separates none of the primary series after
+    Holm.
+- **Reproducibility.** The M13 artefacts are a regression test:
+  - byte for byte in the reference environment;
+  - elsewhere, layered: discrete values exact, floats within measured
+    bounds.
+
+  Two W250 GARCH refits sit on the strict α + β < 1 boundary. Their
+  validity, and the W250 GARCH floats, depend on the CPU; no W250 risk
+  outcome does.
+- **For the M14 pre-registration:**
+  - do not condition a tail-calibration hypothesis on a QL DM test whose
+    power was not computed;
+  - de-duplicate the W250 families (Naive and EWMA are effectively the
+    same in both specifications);
+  - pre-register a reaction summary that discriminates.
+
+### M13 — complete (pending the `v1.2.0` tag)
+
+Volatility models: Naive, EWMA and GARCH(1,1) σ forecasts → Normal and FHS
+VaR/ES, evaluated against the frozen v1 baseline on the same 2,514 days.
+M13.0–M13.9 are each in their own commits on `m13/volatility-models`. Gates:
+G0 (design), G1 (pre-registration), G3 (before the single OOS run).
+
 ### `v1.1.0` release notes (released)
 
 `v1.1.0` closes M11 (multi-asset portfolios). Changes to existing

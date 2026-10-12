@@ -21,6 +21,13 @@ scope decisions and milestones.
 
 ## Status
 
+**`v1.2.0` — Volatility models (M13).** A pre-registered research
+milestone: Naive, EWMA and GARCH(1,1) volatility forecasts feeding 99% VaR
+and ES under Normal and filtered historical simulation (FHS). It was
+evaluated once, out of sample, against the frozen v1 baseline. No API
+endpoint, schema or v1/v1.1 figure changes. See "Volatility Models (M13)"
+below and `docs/results_m13.md`.
+
 **`v1.1.0` — Multi-asset portfolios (M11).**
 - **Portfolios.** Long-only portfolios of assets in one currency, given as
   notionals.
@@ -464,8 +471,84 @@ empirical and normal tails, is the structural gap this data exposes.
 
 The natural next step is therefore a conditionally-heteroskedastic
 volatility estimate (EWMA, or a GARCH-family model) feeding the existing
-VaR methods, and/or filtered historical simulation. **Not implemented**:
-this is where the evidence points, not a decision already taken.
+VaR methods, and/or filtered historical simulation. M13 took that step;
+see the next section.
+
+## Volatility Models (M13)
+
+*Pre-registered in `docs/design_m13.md` (`35008ca`, amended before the
+out-of-sample run at `1af2fc5`), run once, and reported in
+`docs/results_m13.md`.*
+
+Three one-day variance forecasts are each mapped to 99% VaR/ES through a
+Normal tail and through filtered historical simulation (FHS), on the same
+2,514 SPY days as the baseline above:
+- **Naive:** zero-mean, 250 days;
+- **EWMA:** λ = 0.94;
+- **GARCH(1,1):** refitted monthly on 1,000 days.
+
+Every hypothesis was decided by a rule fixed before the run.
+
+| Series (primary) | Exceptions (25.14 expected) | Kupiec p | Christoffersen ind. p | Mean quantile loss |
+|---|---|---|---|---|
+| Frozen parametric | 72 | < 1e-6 | 0.001 | 5.718e-4 |
+| Naive-Normal | 69 | < 1e-6 | 0.0005 | 5.653e-4 |
+| EWMA-Normal | 59 | < 1e-6 | 0.061 | 4.376e-4 |
+| GARCH-Normal | 56 | < 1e-6 | 0.525 | 3.915e-4 |
+| Naive-FHS | 28 | 0.573 | 8e-6 | 5.212e-4 |
+| EWMA-FHS | 25 | 0.978 | 0.024 | 4.010e-4 |
+| GARCH-FHS | 28 | 0.573 | 0.039 | 3.771e-4 |
+| Frozen historical | 41 | 0.0036 | 0.0004 | 5.069e-4 |
+
+**Hypotheses, as the rules decide them:**
+
+- **H1, not supported:** EWMA-Normal's quantile loss is not significantly
+  below Naive-Normal's after Holm.
+- **H2, supported:** GARCH has a significantly lower QLIKE than Naive
+  (Holm 0.0017).
+- **H3, supported:** the best volatility forecast (GARCH), through a
+  Normal tail, still rejects Kupiec. Across the 12 series, QLIKE and
+  quantile loss rank together (Spearman 0.82). A better forecast is
+  necessary but not sufficient.
+- **H4, not supported for any model.** The rule needed a significant
+  quantile-loss DM, and none was. Every FHS series passes Kupiec and
+  every Normal series rejects it.
+
+**What the evidence supports.** The two steps fix different things:
+- **Volatility dynamics** lower the quantile loss.
+- **The empirical tail** fixes coverage.
+
+Per regime (descriptive), the failures sit in different places:
+- the dynamic Normal series overshoot on *normal* days (EWMA-Normal 55
+  exceptions against 21.8 expected);
+- Naive and the frozen methods overshoot in *high volatility* (frozen
+  parametric 19 against 3.4).
+
+Exceptions still cluster for EWMA-FHS and GARCH-FHS (independence p
+0.024 and 0.039).
+
+![Basel traffic light, M13](results/volatility/figures/01_basel_zones.png)
+
+```bash
+uv sync --extra dev --extra forecasting
+pytest tests/research/test_m13_artefacts.py   # regenerates the study and compares (~25 s)
+```
+
+`research/volatility/run_m13.py` produced `results/volatility/m13/` once.
+It refuses to run outside the reference environment (the AVX-512 machine
+that ran it), when its output already exists, or from a dirty tree. The
+committed artefacts are a regression test:
+- byte for byte in the reference environment;
+- elsewhere, every discrete value exact and floats within measured
+  bounds.
+
+**Limitations** (full list in `docs/results_m13.md` §5):
+- one asset, one confidence level;
+- low power of the quantile-loss DM test;
+- nine series at the Acerbi–Székely p-value floor;
+- six GARCH W250 refit failures after COVID;
+- two W250 refits on the strict α + β < 1 boundary, whose validity
+  depends on the CPU, though no risk outcome does.
 
 ## Logging
 

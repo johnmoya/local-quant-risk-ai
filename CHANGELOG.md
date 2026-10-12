@@ -1,8 +1,81 @@
 # Changelog
 
 Notable changes per release. The design reasoning behind each change is in
-`docs/` (`design_m11.md` for v1.1.0), and the release notes as written
-during development are in `docs/roadmap.md`.
+`docs/` (`design_m11.md` for v1.1.0, `design_m13.md` for v1.2.0), and the
+release notes as written during development are in `docs/roadmap.md`.
+
+## v1.2.0 — Volatility models (M13)
+
+A pre-registered research milestone. **No API endpoint, schema, `RiskMethod`
+member or Docker image changes**, and no figure from a v1 or v1.1 endpoint
+changes. The published v1 baseline (`results/real_data/`) is a
+byte-for-byte regression test.
+
+### Results
+
+Conditional volatility forecasts (Naive 250, EWMA λ = 0.94, GARCH(1,1)
+refitted monthly) mapped to 99% one-day VaR/ES through Normal and filtered
+historical simulation (FHS). They were evaluated on the frozen baseline's
+2,514 SPY out-of-sample days and run once (M13.8). Full report:
+`docs/results_m13.md`.
+
+- **H1** (EWMA-Normal beats Naive-Normal on quantile loss): not
+  supported.
+- **H2** (GARCH beats Naive on QLIKE): supported.
+- **H3** (the best volatility forecast, through a Normal tail, still
+  fails Kupiec): supported. A better forecast is necessary but not
+  sufficient: Spearman 0.82 between QLIKE and quantile loss.
+- **H4** (FHS beats Normal on quantile loss and passes Kupiec): not
+  supported for any model.
+  - All three FHS series pass Kupiec and all three Normal series reject
+    it.
+  - The quantile-loss DM was not significant for any model.
+- **Exceptions** (25.14 expected): frozen parametric 72 → Naive-Normal 69
+  → EWMA/GARCH-Normal 59/56 → EWMA/GARCH-FHS 25/28.
+
+### Added
+
+- `risk/volatility.py`: rolling, EWMA and GARCH(1,1) variance as pure
+  functions. Sums use `math.fsum` and there are no dispatched ufuncs, so
+  the bits do not depend on the CPU.
+- `risk/var_conditional.py`: Normal and FHS VaR/ES from a σ forecast, in a
+  research-only `ConditionalRiskResult`.
+- `risk/forecast_evaluation.py`: MSE, QLIKE, MAE, quantile loss,
+  Diebold–Mariano (Newey–West, HLN) and Holm.
+- `risk/backtesting.py`: Acerbi–Székely Z2 with a simulated p-value. The
+  existing functions are unchanged.
+- `research/volatility/`:
+  - data splice;
+  - GARCH fitting with `arch`;
+  - walk-forward;
+  - pre-registered evaluation;
+  - a single-run script that refuses to run outside the reference
+    environment, twice, from a dirty tree or without the pre-registration
+    in its history;
+  - the Basel traffic-light figure.
+- `data/research/SPY_prices_2000_2025.csv`: extended history for the
+  estimation windows, with its provenance (Yahoo delivers prices at
+  single precision).
+- A `forecasting` extra (`arch`, `xgboost-cpu`), research-only. CI installs
+  it, and the runtime dependencies are unchanged.
+- `results/volatility/m13/` with its regression test:
+  - byte for byte in the reference environment;
+  - elsewhere, every discrete value exact and floats within measured
+    bounds.
+
+### Known limitations
+
+- One asset (SPY), one confidence level, a one-day horizon.
+- **CPU-dependent fits.** Two W250 GARCH refits sit on the strict
+  α + β < 1 boundary, so their validity depends on the CPU. No W250 risk
+  outcome changes; the W250 GARCH floats reproduce exactly only in the
+  reference environment.
+- **Low-power DM.** The quantile-loss Diebold–Mariano test had low power
+  here.
+- **AS p-value floor.** Nine series sit at the Acerbi–Székely p-value
+  floor (< 1e-4) and are not ranked against each other.
+
+See `docs/results_m13.md` §5 for the full list.
 
 ## v1.1.0 — Multi-asset portfolios (M11)
 
