@@ -120,6 +120,24 @@ def test_dm_entries_are_the_test_on_the_series_losses(report: dict, evaluation: 
     )
 
 
+def test_every_dm_entry_is_a_minus_b_on_its_own_losses(report: dict, evaluation: Evaluation):
+    """Orientation, for every entry of every family: the statistic is DM on
+    (losses of a, losses of b), so a negative value favours a. A swapped
+    pair would flip H1 or H4 without changing any p-value."""
+    for family, entries in report["diebold_mariano"].items():
+        for key, entry in entries.items():
+            if family.startswith("F1"):
+                loss = key.rsplit("_", 1)[-1]
+                a = evaluation.volatility_losses(entry["a"], loss)
+                b = evaluation.volatility_losses(entry["b"], loss)
+            else:
+                a = evaluation.quantile_losses(entry["a"])
+                b = evaluation.quantile_losses(entry["b"])
+            expected = diebold_mariano(a, b)
+            assert entry["statistic"] == expected.statistic, (family, key)
+            assert entry["mean_difference_a_minus_b"] == expected.mean_difference, (family, key)
+
+
 def test_holm_is_applied_within_each_family(report: dict):
     for family in report["diebold_mariano"].values():
         entries = [e for e in family.values() if "p_value" in e]
