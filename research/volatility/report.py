@@ -244,7 +244,12 @@ class Evaluation:
             try:
                 dm = diebold_mariano(loss_a, loss_b)
             except InvalidParameterError as error:
-                results[key] = {"a": a, "b": b, "undefined": str(error)}
+                results[key] = {
+                    "a": a,
+                    "b": b,
+                    "undefined": str(error),
+                    "excluded_from_holm": True,
+                }
                 continue
             results[key] = {
                 "a": a,
@@ -302,6 +307,20 @@ class Evaluation:
             block[f"F1_{s}"] = self._dm(f1)
             block[f"F2_{s}"] = self._dm(f2)
         return block
+
+    @staticmethod
+    def holm_exclusions(dm: dict) -> dict:
+        """Every undefined DM test, per family, with the reason it was left
+        out of the family's Holm adjustment (§13, ratified at G3). Every
+        family is listed, so an empty list says there was none."""
+        return {
+            family: [
+                {"test": key, "a": entry["a"], "b": entry["b"], "reason": entry["undefined"]}
+                for key, entry in tests.items()
+                if "undefined" in entry
+            ]
+            for family, tests in dm.items()
+        }
 
     def _regime_stats(self, mask: np.ndarray, series: str) -> dict:
         n = int(mask.sum())
@@ -443,7 +462,10 @@ class Evaluation:
                 "supported": favours_a(entry) and not fhs["kupiec"]["reject_null"],
             }
         return {
-            "rule_source": "docs/design_m13.md §10, clarified in §13 before the first OOS run",
+            "rule_source": (
+                "docs/design_m13.md §10, clarified in §13 and ratified in §16 "
+                "before the first OOS run"
+            ),
             "test_level": level,
             "H1": {
                 "statement": "EWMA-Normal improves on Naive-Normal",
@@ -511,6 +533,7 @@ class Evaluation:
                 ),
                 "volatility": self.volatility_block(),
                 "diebold_mariano": dm,
+                "holm_exclusions": self.holm_exclusions(dm),
                 "regimes": self.regimes_block(),
                 "spearman_qlike_vs_quantile_loss": self.spearman_block(series),
                 "decomposition_primary": self.decomposition_block(series),

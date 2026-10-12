@@ -164,6 +164,27 @@ def test_an_undefined_dm_is_left_out_of_its_family(evaluation: Evaluation):
     for key in raw:
         assert result[key]["holm_adjusted_p"] == expected[key]
 
+    # The report lists it, with the reason, under its family.
+    listed = evaluation.holm_exclusions({"F9": result, "F8": {"strong": result["strong"]}})
+    assert listed == {
+        "F9": [
+            {
+                "test": "identical",
+                "a": "e",
+                "b": "f",
+                "reason": result["identical"]["undefined"],
+            }
+        ],
+        "F8": [],
+    }
+
+
+def test_the_report_lists_holm_exclusions_for_every_family(report: dict):
+    assert set(report["holm_exclusions"]) == set(report["diebold_mariano"])
+    for family, excluded in report["holm_exclusions"].items():
+        undefined = [k for k, e in report["diebold_mariano"][family].items() if "undefined" in e]
+        assert [entry["test"] for entry in excluded] == undefined
+
 
 # --- Acerbi–Székely: each series simulated under its own predictive distribution --------
 

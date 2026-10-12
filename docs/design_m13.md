@@ -352,8 +352,14 @@ returns ≤ t−1.
 - **Refit schedule:** on the first OOS trading day of each month, using
   the 1,000 returns that end the day before. Between refits, the filter
   runs daily with fixed parameters.
-- **Recursion:** it lives in `risk/volatility.py` (pure). arch's backcast
-  is passed explicitly as the initial variance.
+- **Recursion:** it lives in `risk/volatility.py` (pure), and starts where
+  arch's does. arch's first variance is not its backcast b but
+  ω + (α+β)·b, as if the pre-sample squared return and variance both
+  equalled b. That value (`GarchFit.initial_variance`) is passed
+  explicitly as the initial variance, so the filter reproduces arch's
+  whole in-sample variance path (to ~1e-15), and the GARCH-FHS residuals
+  are arch's fit residuals (§6.1). Amended before the first OOS run (§13,
+  §16).
 - **Test:** the one-step forecast must match `res.forecast(horizon=1)`
   to rtol 1e-10.
 
@@ -710,3 +716,42 @@ contract. Nothing from M13 is recomputed.
 | G1-2 | GARCH-FHS-OOS series (§6.1) | Descriptive only, outside the Holm families; F1 and F2 unchanged |
 | G1-3 | `math.fsum` and no vectorised dispatched functions in `risk/volatility.py` (§2.4) | The bit test runs on every CI leg; if `math.log` differs between runners, it is reported and that part moves to Level B |
 | — | Level A under `gate.sh` (§2.2) | `gate.sh` fails, rather than skips, when the local environment cannot run Level A; checked by mutation |
+
+## 16. Pre-OOS amendments (G3, approved 2026-10-12)
+
+**Scope.** Six §13 entries change or settle something the pre-registration
+had fixed, or had left open. They were logged before the first OOS run, in
+`d7e7855` (2026-10-03). G3 ratifies them on 2026-10-12, still before the
+first OOS run. From here on they are part of the pre-registration, like
+the rest of this document.
+
+| §13 entry | Section | Ratified rule | Code |
+|---|---|---|---|
+| GARCH start | §5 | The filter starts at ω + (α+β)·b, arch's convention, not at b. §5 now says so | `2ed7c2f` |
+| Pre-OOS schedule | §6.1 | GARCH-FHS-OOS refits first on the first day of the residual window (2012-01-10), then on the first trading day of each month up to 2015-12-01 | `d7e7855` |
+| AS p-value and nulls | §7 | p = (1 + #{Z2_m ≤ Z2}) / (M + 1). Frozen parametric and Monte Carlo are simulated as N(μ̂, σ̂) on their window, frozen historical by resampling its 250-day window ending at t−1 | `e17e185`, `d7e7855` |
+| Holm and undefined DM | §8 | Significant means Holm-adjusted p ≤ 0.05. An undefined DM (zero long-run variance) is reported as such and left out of its family's adjustment. `evaluation.json` lists each one, per family, with its reason, under `holm_exclusions` | `d7e7855`, G3 C2 |
+| Reaction and overshoot | §9 | As defined in §13. Descriptive only | `d7e7855` |
+| H4 | §10 | Supported per model when the QL DM FHS vs Normal is significant after Holm in FHS's favour, **and** the FHS series does not reject Kupiec at 5% | `d7e7855` |
+
+**Measured effect of the GARCH start.** On simulated GARCH(1,1)-t data
+with the repository's fitter, the two starting values differ by up to about
+1% in GARCH-FHS VaR on a refit day, falling to about 4e-4 within 21 days,
+and by up to 0.2% in the W250 σ_t. That is why it is ratified here rather
+than treated as an implementation detail.
+
+**The other G3 conditions,** each in its own commit:
+- **Q3:** a test that the frozen-historical AS null resamples days before
+  t only (`59b8d13`). The code was already right; no test checked it.
+- **C3:** tests for the report pieces no mutation reached: Holm's
+  boundary, undefined DMs, every AS null and its seeds, reaction and
+  overshoot (`9cd7ed6`).
+- **C1:** `run_m13.py` refuses to run unless:
+  - the environment is the reference one;
+  - `results/volatility/m13/` does not exist;
+  - the tree is clean;
+  - `35008ca` is an ancestor of HEAD.
+
+  It records both commits in `run_metadata.json`, and has no flag to
+  override any of this (`4b72ce6`).
+- **C4:** FHS ES keeps the 18-ulp bound (§6, §13).
