@@ -17,7 +17,7 @@ development machine with NPY_DISABLE_CPU_FEATURES="X86_V4 AVX512_ICL"):
    EWMA, FHS on them, the frozen series, regimes). Measured: 10 ulps.
 3. **Within MAX_RELATIVE:** every float that depends on the primary GARCH
    fits. arch's optimiser turns a 1-ulp difference in the log returns
-   into at most 3.9e-7 relative difference downstream.
+   into relative differences of at most 1.6e-6 (on a fitted omega).
 4. **Not compared:** the floats that depend on the W250 GARCH fits,
    plus that schedule's fit log, params_date, stale columns and the
    `garch.w250` block. Three W250 refits converge on alpha + beta = 1, the
@@ -70,14 +70,17 @@ REGENERATED = ("forecasts.csv", "evaluation.json", "garch_fit_log.csv")
 #   e.g. naive_fhs_w250 vs naive_normal_w250, whose mean difference
 #   (4e-6) is ~1% of the losses, so the subtraction amplifies the input
 #   ulps.
-# - 3.9e-7 relative on the primary-GARCH floats.
+# - 3.9e-7 relative on the primary-GARCH floats; 1.59e-6 on a CI Python
+#   3.11 runner with X86_V3 (run 38322657855), on the omega of one
+#   primary refit in the fit log, while its forecasts and evaluation stayed
+#   within 1.2e-6.
 # Bounds ~3x, as for the baseline. If a new environment exceeds them,
 # measure there and record the figure before changing them; never widen
 # them to quiet the suite.
 MEASURED_MAX_ULPS = 10
 MAX_ULPS = 30
-MEASURED_MAX_RELATIVE = 3.9e-7
-MAX_RELATIVE = 1.2e-6
+MEASURED_MAX_RELATIVE = 1.59e-6
+MAX_RELATIVE = 5e-6
 
 # The declared W250 limit: the refits on the boundary alpha + beta = 1, and
 # alpha + beta in the reference run. The first two fail without AVX-512.
@@ -415,7 +418,7 @@ def test_level_b_float_bounds_are_exact():
         ),
         pytest.param(
             lambda e: e["volatility"]["garch_primary"].update(
-                qlike=e["volatility"]["garch_primary"]["qlike"] * (1 + 2e-6)
+                qlike=e["volatility"]["garch_primary"]["qlike"] * (1 + 2 * MAX_RELATIVE)
             ),
             id="primary-garch-float",
         ),
