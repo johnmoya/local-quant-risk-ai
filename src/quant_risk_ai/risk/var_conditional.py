@@ -13,7 +13,10 @@ zero mean unless a mean is passed explicitly (docs/design_m13.md §6):
   quantile of standardised residuals z_s = r_s / sigma_{s|s-1}, rescaled by
   sigma_t, with the same `Series.quantile` (linear) and the same tail rule
   (mean of z <= cutoff) as `historical_var` / `historical_expected_shortfall`.
-  With a constant sigma it reproduces those to within 4 ulps (tested).
+  With a constant sigma it reproduces them to within 4 ulps for VaR and 18
+  for ES (tested; measured 2 and 6). ES averages the tail after dividing
+  each value by sigma, which adds one rounding per tail value
+  (docs/design_m13.md §6, §13).
 
 What the residuals are, fit residuals or out-of-sample forecast residuals,
 is the caller's choice and matters for comparisons (docs/design_m13.md
