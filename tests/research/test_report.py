@@ -67,6 +67,20 @@ def test_every_series_is_evaluated(report: dict, config: M13Config):
     assert report["preregistration"]["commit"] == "35008ca"
 
 
+def test_frozen_historical_simulation_window_ends_the_day_before(
+    evaluation: Evaluation, returns: pd.Series
+):
+    """The Acerbi–Székely null for the frozen historical series resamples
+    the 250 returns before each day, as the published method did: the
+    day's own return is never in its pool."""
+    windows = evaluation._frozen_windows()
+    dates = pd.DatetimeIndex(evaluation.frame["date"])
+    assert windows.shape == (len(dates), 250)
+    for row, day in zip(windows, dates, strict=True):
+        before = returns.loc[returns.index < day].to_numpy()[-250:]
+        np.testing.assert_array_equal(row, before)
+
+
 def test_families_are_the_preregistered_ones(report: dict):
     for spec in ("primary", "w250"):
         assert len(report["diebold_mariano"][f"F1_{spec}"]) == 6
