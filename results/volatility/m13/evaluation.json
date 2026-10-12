@@ -1,0 +1,3502 @@
+{
+  "preregistration": {
+    "document": "docs/design_m13.md",
+    "commit": "35008ca"
+  },
+  "config": {
+    "alpha": 0.99,
+    "position_value": 1000000.0,
+    "ewma_lambda": 0.94,
+    "oos_start": "2015-12-31",
+    "oos_end": "2025-12-30",
+    "specifications": [
+      {
+        "name": "primary",
+        "naive_window": 250,
+        "ewma_window": 500,
+        "garch_window": 1000,
+        "residual_window": 1000
+      },
+      {
+        "name": "w250",
+        "naive_window": 250,
+        "ewma_window": 250,
+        "garch_window": 250,
+        "residual_window": 250
+      }
+    ],
+    "garch_fhs_oos": true,
+    "regime_threshold": 0.224383438082287,
+    "test_level": 0.05,
+    "holm_level": 0.05,
+    "acerbi_szekely_scenarios": 10000,
+    "acerbi_szekely_seed_base": 2000000
+  },
+  "data": {
+    "n_oos_days": 2514,
+    "first_forecast": "2015-12-31",
+    "last_forecast": "2025-12-30"
+  },
+  "series": {
+    "naive_normal_primary": {
+      "n_observations": 2514,
+      "observed_exceptions": 69,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.027446,
+      "violation_ratio": 2.7446,
+      "mean_var": 24711.13,
+      "median_var": 22461.32,
+      "mean_es": 28310.66,
+      "median_es": 25733.14,
+      "kupiec": {
+        "statistic": 52.388694,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 11.998443,
+        "p_value": 0.000532,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 64.387137,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 69,
+        "cumulative_probability": 1.0,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 874,
+        "yellow": 579,
+        "red": 812,
+        "pct_green": 38.59,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.0005652683360399221,
+      "volatility_model": "naive_primary",
+      "acerbi_szekely_z2": {
+        "statistic": -2.679337532173642,
+        "p_value": 9.999000099990002e-05,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "naive_fhs_primary": {
+      "n_observations": 2514,
+      "observed_exceptions": 28,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.011138,
+      "violation_ratio": 1.1138,
+      "mean_var": 36113.99,
+      "median_var": 31744.93,
+      "mean_es": 53234.83,
+      "median_es": 47190.79,
+      "kupiec": {
+        "statistic": 0.316969,
+        "p_value": 0.573435,
+        "reject_null": false
+      },
+      "christoffersen_independence": {
+        "statistic": 20.061073,
+        "p_value": 8e-06,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 20.378042,
+        "p_value": 3.8e-05,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "green",
+        "n_observations": 2514,
+        "n_violations": 28,
+        "cumulative_probability": 0.75540301,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 1559,
+        "yellow": 706,
+        "red": 0,
+        "pct_green": 68.83,
+        "worst_zone": "yellow"
+      },
+      "mean_quantile_loss": 0.0005211868095526726,
+      "volatility_model": "naive_primary",
+      "acerbi_szekely_z2": {
+        "statistic": -0.23401519986509256,
+        "p_value": 0.12618738126187382,
+        "n_scenarios": 10000,
+        "reject_null": false,
+        "kind": "backtest outcome"
+      }
+    },
+    "ewma_normal_primary": {
+      "n_observations": 2514,
+      "observed_exceptions": 59,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.023469,
+      "violation_ratio": 2.3469,
+      "mean_var": 22609.03,
+      "median_var": 18775.2,
+      "mean_es": 25902.36,
+      "median_es": 21510.08,
+      "kupiec": {
+        "statistic": 33.40587,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 3.497878,
+        "p_value": 0.061448,
+        "reject_null": false
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 36.903748,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 59,
+        "cumulative_probability": 1.0,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 710,
+        "yellow": 1324,
+        "red": 231,
+        "pct_green": 31.35,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.00043755487140739036,
+      "volatility_model": "ewma_primary",
+      "acerbi_szekely_z2": {
+        "statistic": -2.0507965692149424,
+        "p_value": 9.999000099990002e-05,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "ewma_fhs_primary": {
+      "n_observations": 2514,
+      "observed_exceptions": 25,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.009944,
+      "violation_ratio": 0.9944,
+      "mean_var": 31576.71,
+      "median_var": 25541.95,
+      "mean_es": 42651.61,
+      "median_es": 33701.09,
+      "kupiec": {
+        "statistic": 0.000789,
+        "p_value": 0.977592,
+        "reject_null": false
+      },
+      "christoffersen_independence": {
+        "statistic": 5.091059,
+        "p_value": 0.024049,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 5.091848,
+        "p_value": 0.078401,
+        "reject_null": false
+      },
+      "basel_full_sample": {
+        "zone": "green",
+        "n_observations": 2514,
+        "n_violations": 25,
+        "cumulative_probability": 0.54173426,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 1878,
+        "yellow": 387,
+        "red": 0,
+        "pct_green": 82.91,
+        "worst_zone": "yellow"
+      },
+      "mean_quantile_loss": 0.0004009883821162162,
+      "volatility_model": "ewma_primary",
+      "acerbi_szekely_z2": {
+        "statistic": -0.06055410390026372,
+        "p_value": 0.36896310368963103,
+        "n_scenarios": 10000,
+        "reject_null": false,
+        "kind": "backtest outcome"
+      }
+    },
+    "garch_normal_primary": {
+      "n_observations": 2514,
+      "observed_exceptions": 56,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.022275,
+      "violation_ratio": 2.2275,
+      "mean_var": 22473.96,
+      "median_var": 18867.3,
+      "mean_es": 25747.62,
+      "median_es": 21615.59,
+      "kupiec": {
+        "statistic": 28.364079,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 0.40352,
+        "p_value": 0.525277,
+        "reject_null": false
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 28.767598,
+        "p_value": 1e-06,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 56,
+        "cumulative_probability": 0.99999997,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 796,
+        "yellow": 1292,
+        "red": 177,
+        "pct_green": 35.14,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.000391549412758896,
+      "volatility_model": "garch_primary",
+      "acerbi_szekely_z2": {
+        "statistic": -1.6776586801576117,
+        "p_value": 9.999000099990002e-05,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "garch_fhs_primary": {
+      "n_observations": 2514,
+      "observed_exceptions": 28,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.011138,
+      "violation_ratio": 1.1138,
+      "mean_var": 28413.15,
+      "median_var": 22844.66,
+      "mean_es": 36440.38,
+      "median_es": 29460.08,
+      "kupiec": {
+        "statistic": 0.316969,
+        "p_value": 0.573435,
+        "reject_null": false
+      },
+      "christoffersen_independence": {
+        "statistic": 4.267136,
+        "p_value": 0.038856,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 4.584105,
+        "p_value": 0.101059,
+        "reject_null": false
+      },
+      "basel_full_sample": {
+        "zone": "green",
+        "n_observations": 2514,
+        "n_violations": 28,
+        "cumulative_probability": 0.75540301,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 1940,
+        "yellow": 325,
+        "red": 0,
+        "pct_green": 85.65,
+        "worst_zone": "yellow"
+      },
+      "mean_quantile_loss": 0.0003770534963368066,
+      "volatility_model": "garch_primary",
+      "acerbi_szekely_z2": {
+        "statistic": -0.17750817362413018,
+        "p_value": 0.1835816418358164,
+        "n_scenarios": 10000,
+        "reject_null": false,
+        "kind": "backtest outcome"
+      }
+    },
+    "naive_normal_w250": {
+      "n_observations": 2514,
+      "observed_exceptions": 69,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.027446,
+      "violation_ratio": 2.7446,
+      "mean_var": 24711.13,
+      "median_var": 22461.32,
+      "mean_es": 28310.66,
+      "median_es": 25733.14,
+      "kupiec": {
+        "statistic": 52.388694,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 11.998443,
+        "p_value": 0.000532,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 64.387137,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 69,
+        "cumulative_probability": 1.0,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 874,
+        "yellow": 579,
+        "red": 812,
+        "pct_green": 38.59,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.0005652683360399221,
+      "volatility_model": "naive_w250",
+      "acerbi_szekely_z2": {
+        "statistic": -2.679337532173642,
+        "p_value": 9.999000099990002e-05,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "naive_fhs_w250": {
+      "n_observations": 2514,
+      "observed_exceptions": 48,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.019093,
+      "violation_ratio": 1.9093,
+      "mean_var": 39059.65,
+      "median_var": 29644.64,
+      "mean_es": 48755.64,
+      "median_es": 35887.44,
+      "kupiec": {
+        "statistic": 16.577731,
+        "p_value": 4.7e-05,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 9.532854,
+        "p_value": 0.002018,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 26.110585,
+        "p_value": 2e-06,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 48,
+        "cumulative_probability": 0.99998549,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 1174,
+        "yellow": 739,
+        "red": 352,
+        "pct_green": 51.83,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.0005696365207545732,
+      "volatility_model": "naive_w250",
+      "acerbi_szekely_z2": {
+        "statistic": -1.2030167294480973,
+        "p_value": 9.999000099990002e-05,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "ewma_normal_w250": {
+      "n_observations": 2514,
+      "observed_exceptions": 59,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.023469,
+      "violation_ratio": 2.3469,
+      "mean_var": 22609.03,
+      "median_var": 18775.18,
+      "mean_es": 25902.36,
+      "median_es": 21510.06,
+      "kupiec": {
+        "statistic": 33.40587,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 3.497878,
+        "p_value": 0.061448,
+        "reject_null": false
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 36.903748,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 59,
+        "cumulative_probability": 1.0,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 710,
+        "yellow": 1324,
+        "red": 231,
+        "pct_green": 31.35,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.0004375548771414578,
+      "volatility_model": "ewma_w250",
+      "acerbi_szekely_z2": {
+        "statistic": -2.0507969329611346,
+        "p_value": 9.999000099990002e-05,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "ewma_fhs_w250": {
+      "n_observations": 2514,
+      "observed_exceptions": 31,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.012331,
+      "violation_ratio": 1.2331,
+      "mean_var": 30676.01,
+      "median_var": 24890.91,
+      "mean_es": 39380.19,
+      "median_es": 31878.18,
+      "kupiec": {
+        "statistic": 1.284482,
+        "p_value": 0.257067,
+        "reject_null": false
+      },
+      "christoffersen_independence": {
+        "statistic": 3.557524,
+        "p_value": 0.059276,
+        "reject_null": false
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 4.842007,
+        "p_value": 0.088832,
+        "reject_null": false
+      },
+      "basel_full_sample": {
+        "zone": "green",
+        "n_observations": 2514,
+        "n_violations": 31,
+        "cumulative_probability": 0.89583292,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 1878,
+        "yellow": 387,
+        "red": 0,
+        "pct_green": 82.91,
+        "worst_zone": "yellow"
+      },
+      "mean_quantile_loss": 0.00039882103422884024,
+      "volatility_model": "ewma_w250",
+      "acerbi_szekely_z2": {
+        "statistic": -0.33301245305244564,
+        "p_value": 0.2652734726527347,
+        "n_scenarios": 10000,
+        "reject_null": false,
+        "kind": "backtest outcome"
+      }
+    },
+    "garch_normal_w250": {
+      "n_observations": 2514,
+      "observed_exceptions": 59,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.023469,
+      "violation_ratio": 2.3469,
+      "mean_var": 22412.88,
+      "median_var": 18450.53,
+      "mean_es": 25677.64,
+      "median_es": 21138.12,
+      "kupiec": {
+        "statistic": 33.40587,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 0.252939,
+        "p_value": 0.615013,
+        "reject_null": false
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 33.658809,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 59,
+        "cumulative_probability": 1.0,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 830,
+        "yellow": 1198,
+        "red": 237,
+        "pct_green": 36.64,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.0004069679936005088,
+      "volatility_model": "garch_w250",
+      "acerbi_szekely_z2": {
+        "statistic": -1.9688348581979351,
+        "p_value": 9.999000099990002e-05,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "garch_fhs_w250": {
+      "n_observations": 2514,
+      "observed_exceptions": 39,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.015513,
+      "violation_ratio": 1.5513,
+      "mean_var": 26693.68,
+      "median_var": 22439.12,
+      "mean_es": 33274.64,
+      "median_es": 28173.9,
+      "kupiec": {
+        "statistic": 6.60724,
+        "p_value": 0.010156,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 2.094912,
+        "p_value": 0.14779,
+        "reject_null": false
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 8.702152,
+        "p_value": 0.012893,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "yellow",
+        "n_observations": 2514,
+        "n_violations": 39,
+        "cumulative_probability": 0.99639531,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 1456,
+        "yellow": 809,
+        "red": 0,
+        "pct_green": 64.28,
+        "worst_zone": "yellow"
+      },
+      "mean_quantile_loss": 0.0003923934486056664,
+      "volatility_model": "garch_w250",
+      "acerbi_szekely_z2": {
+        "statistic": -0.7517111698762804,
+        "p_value": 0.009299070092990702,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "garch_fhs_oos_primary": {
+      "n_observations": 2514,
+      "observed_exceptions": 27,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.01074,
+      "violation_ratio": 1.074,
+      "mean_var": 29272.86,
+      "median_var": 23640.47,
+      "mean_es": 37405.87,
+      "median_es": 30477.65,
+      "kupiec": {
+        "statistic": 0.13573,
+        "p_value": 0.712563,
+        "reject_null": false
+      },
+      "christoffersen_independence": {
+        "statistic": 4.527952,
+        "p_value": 0.033346,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 4.663682,
+        "p_value": 0.097117,
+        "reject_null": false
+      },
+      "basel_full_sample": {
+        "zone": "green",
+        "n_observations": 2514,
+        "n_violations": 27,
+        "cumulative_probability": 0.69089086,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 1940,
+        "yellow": 325,
+        "red": 0,
+        "pct_green": 85.65,
+        "worst_zone": "yellow"
+      },
+      "mean_quantile_loss": 0.0003801598550921317,
+      "volatility_model": "garch_primary",
+      "acerbi_szekely_z2": {
+        "statistic": -0.14082400629441616,
+        "p_value": 0.23767623237676233,
+        "n_scenarios": 10000,
+        "reject_null": false,
+        "kind": "backtest outcome"
+      }
+    },
+    "frozen_historical": {
+      "n_observations": 2514,
+      "observed_exceptions": 41,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.016309,
+      "violation_ratio": 1.6309,
+      "mean_var": 30444.04,
+      "median_var": 26882.29,
+      "mean_es": 38690.28,
+      "median_es": 32721.07,
+      "kupiec": {
+        "statistic": 8.488454,
+        "p_value": 0.003574,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 12.426239,
+        "p_value": 0.000423,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 20.914693,
+        "p_value": 2.9e-05,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "yellow",
+        "n_observations": 2514,
+        "n_violations": 41,
+        "cumulative_probability": 0.99877037,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 1219,
+        "yellow": 872,
+        "red": 174,
+        "pct_green": 53.82,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.0005069324745166525,
+      "volatility_model": null,
+      "acerbi_szekely_z2": {
+        "statistic": -0.9094296442190084,
+        "p_value": 0.001999800019998,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "frozen_parametric": {
+      "n_observations": 2514,
+      "observed_exceptions": 72,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.02864,
+      "violation_ratio": 2.864,
+      "mean_var": 24190.21,
+      "median_var": 22023.67,
+      "mean_es": 27787.35,
+      "median_es": 25289.02,
+      "kupiec": {
+        "statistic": 58.685517,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 10.863904,
+        "p_value": 0.000981,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 69.549421,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 72,
+        "cumulative_probability": 1.0,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 873,
+        "yellow": 528,
+        "red": 864,
+        "pct_green": 38.54,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.0005717843480280407,
+      "volatility_model": null,
+      "acerbi_szekely_z2": {
+        "statistic": -2.87603812904208,
+        "p_value": 9.999000099990002e-05,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    },
+    "frozen_monte_carlo": {
+      "n_observations": 2514,
+      "observed_exceptions": 72,
+      "expected_exceptions": 25.14,
+      "exception_rate": 0.02864,
+      "violation_ratio": 2.864,
+      "mean_var": 24185.12,
+      "median_var": 21992.65,
+      "mean_es": 27782.26,
+      "median_es": 25243.71,
+      "kupiec": {
+        "statistic": 58.685517,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "christoffersen_independence": {
+        "statistic": 10.863904,
+        "p_value": 0.000981,
+        "reject_null": true
+      },
+      "christoffersen_conditional_coverage": {
+        "statistic": 69.549421,
+        "p_value": 0.0,
+        "reject_null": true
+      },
+      "basel_full_sample": {
+        "zone": "red",
+        "n_observations": 2514,
+        "n_violations": 72,
+        "cumulative_probability": 1.0,
+        "note": "Generalisation, not the supervisory rule: Basel classifies on a 250-day window. See basel_rolling_250 for that view."
+      },
+      "basel_rolling_250": {
+        "n_windows": 2265,
+        "green": 873,
+        "yellow": 528,
+        "red": 864,
+        "pct_green": 38.54,
+        "worst_zone": "red"
+      },
+      "mean_quantile_loss": 0.0005719199731944444,
+      "volatility_model": null,
+      "acerbi_szekely_z2": {
+        "statistic": -2.872576831686836,
+        "p_value": 9.999000099990002e-05,
+        "n_scenarios": 10000,
+        "reject_null": true,
+        "kind": "backtest outcome"
+      }
+    }
+  },
+  "basel_by_calendar_year": {
+    "2015": {
+      "n_days": 1,
+      "classified": false,
+      "realized_volatility_annualised": null,
+      "naive_normal_primary": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "naive_fhs_primary": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "ewma_normal_primary": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "garch_normal_primary": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "garch_fhs_primary": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "naive_normal_w250": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "naive_fhs_w250": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "ewma_normal_w250": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "garch_normal_w250": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "garch_fhs_w250": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "frozen_historical": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "frozen_parametric": {
+        "exceptions": 0,
+        "zone": null
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 0,
+        "zone": null
+      }
+    },
+    "2016": {
+      "n_days": 252,
+      "classified": true,
+      "realized_volatility_annualised": 0.1308,
+      "naive_normal_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "naive_fhs_primary": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28167024
+      },
+      "ewma_normal_primary": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7538135
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "garch_normal_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "garch_fhs_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "naive_normal_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "naive_fhs_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "ewma_normal_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7538135
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "garch_normal_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "garch_fhs_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "frozen_historical": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28167024
+      },
+      "frozen_parametric": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      }
+    },
+    "2017": {
+      "n_days": 251,
+      "classified": true,
+      "realized_volatility_annualised": 0.0674,
+      "naive_normal_primary": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "naive_fhs_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5405948
+      },
+      "ewma_normal_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89084692
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89084692
+      },
+      "garch_normal_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89084692
+      },
+      "garch_fhs_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5405948
+      },
+      "naive_normal_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "naive_fhs_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89084692
+      },
+      "ewma_normal_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89084692
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "garch_normal_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89084692
+      },
+      "garch_fhs_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89084692
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5405948
+      },
+      "frozen_historical": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "frozen_parametric": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      }
+    },
+    "2018": {
+      "n_days": 251,
+      "classified": true,
+      "realized_volatility_annualised": 0.1708,
+      "naive_normal_primary": {
+        "exceptions": 14,
+        "zone": "red",
+        "cumulative_probability": 0.99999995
+      },
+      "naive_fhs_primary": {
+        "exceptions": 8,
+        "zone": "yellow",
+        "cumulative_probability": 0.99891378
+      },
+      "ewma_normal_primary": {
+        "exceptions": 9,
+        "zone": "yellow",
+        "cumulative_probability": 0.99974175
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "garch_normal_primary": {
+        "exceptions": 7,
+        "zone": "yellow",
+        "cumulative_probability": 0.9958779
+      },
+      "garch_fhs_primary": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95815052
+      },
+      "naive_normal_w250": {
+        "exceptions": 14,
+        "zone": "red",
+        "cumulative_probability": 0.99999995
+      },
+      "naive_fhs_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "ewma_normal_w250": {
+        "exceptions": 9,
+        "zone": "yellow",
+        "cumulative_probability": 0.99974175
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.75596722
+      },
+      "garch_normal_w250": {
+        "exceptions": 12,
+        "zone": "red",
+        "cumulative_probability": 0.99999798
+      },
+      "garch_fhs_w250": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95815052
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95815052
+      },
+      "frozen_historical": {
+        "exceptions": 7,
+        "zone": "yellow",
+        "cumulative_probability": 0.9958779
+      },
+      "frozen_parametric": {
+        "exceptions": 16,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 16,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      }
+    },
+    "2019": {
+      "n_days": 252,
+      "classified": true,
+      "realized_volatility_annualised": 0.1253,
+      "naive_normal_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "naive_fhs_primary": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.07944545
+      },
+      "ewma_normal_primary": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95747749
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "garch_normal_primary": {
+        "exceptions": 7,
+        "zone": "yellow",
+        "cumulative_probability": 0.99577936
+      },
+      "garch_fhs_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "naive_normal_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "naive_fhs_w250": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28167024
+      },
+      "ewma_normal_w250": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95747749
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "garch_normal_w250": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95747749
+      },
+      "garch_fhs_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "frozen_historical": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28167024
+      },
+      "frozen_parametric": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      }
+    },
+    "2020": {
+      "n_days": 253,
+      "classified": true,
+      "realized_volatility_annualised": 0.3365,
+      "naive_normal_primary": {
+        "exceptions": 14,
+        "zone": "red",
+        "cumulative_probability": 0.99999994
+      },
+      "naive_fhs_primary": {
+        "exceptions": 8,
+        "zone": "yellow",
+        "cumulative_probability": 0.99885238
+      },
+      "ewma_normal_primary": {
+        "exceptions": 12,
+        "zone": "red",
+        "cumulative_probability": 0.99999779
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95679769
+      },
+      "garch_normal_primary": {
+        "exceptions": 10,
+        "zone": "red",
+        "cumulative_probability": 0.99994003
+      },
+      "garch_fhs_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88814127
+      },
+      "naive_normal_w250": {
+        "exceptions": 14,
+        "zone": "red",
+        "cumulative_probability": 0.99999994
+      },
+      "naive_fhs_w250": {
+        "exceptions": 7,
+        "zone": "yellow",
+        "cumulative_probability": 0.99567901
+      },
+      "ewma_normal_w250": {
+        "exceptions": 12,
+        "zone": "red",
+        "cumulative_probability": 0.99999779
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88814127
+      },
+      "garch_normal_w250": {
+        "exceptions": 10,
+        "zone": "red",
+        "cumulative_probability": 0.99994003
+      },
+      "garch_fhs_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88814127
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88814127
+      },
+      "frozen_historical": {
+        "exceptions": 8,
+        "zone": "yellow",
+        "cumulative_probability": 0.99885238
+      },
+      "frozen_parametric": {
+        "exceptions": 14,
+        "zone": "red",
+        "cumulative_probability": 0.99999994
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 14,
+        "zone": "red",
+        "cumulative_probability": 0.99999994
+      }
+    },
+    "2021": {
+      "n_days": 252,
+      "classified": true,
+      "realized_volatility_annualised": 0.1299,
+      "naive_normal_primary": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7538135
+      },
+      "naive_fhs_primary": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.07944545
+      },
+      "ewma_normal_primary": {
+        "exceptions": 8,
+        "zone": "yellow",
+        "cumulative_probability": 0.99888342
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28167024
+      },
+      "garch_normal_primary": {
+        "exceptions": 7,
+        "zone": "yellow",
+        "cumulative_probability": 0.99577936
+      },
+      "garch_fhs_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "naive_normal_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7538135
+      },
+      "naive_fhs_w250": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "ewma_normal_w250": {
+        "exceptions": 8,
+        "zone": "yellow",
+        "cumulative_probability": 0.99888342
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "garch_normal_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "garch_fhs_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5380259
+      },
+      "frozen_historical": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28167024
+      },
+      "frozen_parametric": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7538135
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7538135
+      }
+    },
+    "2022": {
+      "n_days": 251,
+      "classified": true,
+      "realized_volatility_annualised": 0.2426,
+      "naive_normal_primary": {
+        "exceptions": 16,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      },
+      "naive_fhs_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5405948
+      },
+      "ewma_normal_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89084692
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28370481
+      },
+      "garch_normal_primary": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.98602373
+      },
+      "garch_fhs_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5405948
+      },
+      "naive_normal_w250": {
+        "exceptions": 16,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      },
+      "naive_fhs_w250": {
+        "exceptions": 9,
+        "zone": "yellow",
+        "cumulative_probability": 0.99974175
+      },
+      "ewma_normal_w250": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89084692
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.5405948
+      },
+      "garch_normal_w250": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.98602373
+      },
+      "garch_fhs_w250": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95815052
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28370481
+      },
+      "frozen_historical": {
+        "exceptions": 10,
+        "zone": "red",
+        "cumulative_probability": 0.99994414
+      },
+      "frozen_parametric": {
+        "exceptions": 17,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 17,
+        "zone": "red",
+        "cumulative_probability": 1.0
+      }
+    },
+    "2023": {
+      "n_days": 250,
+      "classified": true,
+      "realized_volatility_annualised": 0.1307,
+      "naive_normal_primary": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "naive_fhs_primary": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "ewma_normal_primary": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.54316897
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "garch_normal_primary": {
+        "exceptions": 1,
+        "zone": "green",
+        "cumulative_probability": 0.28575174
+      },
+      "garch_fhs_primary": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "naive_normal_w250": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "naive_fhs_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.54316897
+      },
+      "ewma_normal_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.54316897
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 2,
+        "zone": "green",
+        "cumulative_probability": 0.54316897
+      },
+      "garch_normal_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7581167
+      },
+      "garch_fhs_w250": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95881682
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "frozen_historical": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "frozen_parametric": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 0,
+        "zone": "green",
+        "cumulative_probability": 0.08105852
+      }
+    },
+    "2024": {
+      "n_days": 252,
+      "classified": true,
+      "realized_volatility_annualised": 0.1258,
+      "naive_normal_primary": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "naive_fhs_primary": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.7538135
+      },
+      "ewma_normal_primary": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "garch_normal_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "garch_fhs_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "naive_normal_w250": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "naive_fhs_w250": {
+        "exceptions": 11,
+        "zone": "red",
+        "cumulative_probability": 0.99998848
+      },
+      "ewma_normal_w250": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "garch_normal_w250": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95747749
+      },
+      "garch_fhs_w250": {
+        "exceptions": 7,
+        "zone": "yellow",
+        "cumulative_probability": 0.99577936
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.88949812
+      },
+      "frozen_historical": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "frozen_parametric": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.985745
+      }
+    },
+    "2025": {
+      "n_days": 249,
+      "classified": true,
+      "realized_volatility_annualised": 0.1935,
+      "naive_normal_primary": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95947638
+      },
+      "naive_fhs_primary": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89352021
+      },
+      "ewma_normal_primary": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.98656948
+      },
+      "ewma_fhs_primary": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.76026183
+      },
+      "garch_normal_primary": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.98656948
+      },
+      "garch_fhs_primary": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95947638
+      },
+      "naive_normal_w250": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95947638
+      },
+      "naive_fhs_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.76026183
+      },
+      "ewma_normal_w250": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.98656948
+      },
+      "ewma_fhs_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.76026183
+      },
+      "garch_normal_w250": {
+        "exceptions": 6,
+        "zone": "yellow",
+        "cumulative_probability": 0.98656948
+      },
+      "garch_fhs_w250": {
+        "exceptions": 3,
+        "zone": "green",
+        "cumulative_probability": 0.76026183
+      },
+      "garch_fhs_oos_primary": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95947638
+      },
+      "frozen_historical": {
+        "exceptions": 4,
+        "zone": "green",
+        "cumulative_probability": 0.89352021
+      },
+      "frozen_parametric": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95947638
+      },
+      "frozen_monte_carlo": {
+        "exceptions": 5,
+        "zone": "yellow",
+        "cumulative_probability": 0.95947638
+      }
+    }
+  },
+  "volatility": {
+    "naive_primary": {
+      "mse": 2.86017176988014e-07,
+      "qlike": -8.01382357242927,
+      "mae_secondary": 0.00016384199830004256,
+      "note": "MAE is descriptive only: not robust to proxy noise, never used to rank"
+    },
+    "ewma_primary": {
+      "mse": 2.3686436173527418e-07,
+      "qlike": -8.388213706819565,
+      "mae_secondary": 0.0001424558419460086,
+      "note": "MAE is descriptive only: not robust to proxy noise, never used to rank"
+    },
+    "garch_primary": {
+      "mse": 2.0374466926836997e-07,
+      "qlike": -8.452511885267263,
+      "mae_secondary": 0.00013350371980753865,
+      "note": "MAE is descriptive only: not robust to proxy noise, never used to rank"
+    },
+    "naive_w250": {
+      "mse": 2.86017176988014e-07,
+      "qlike": -8.01382357242927,
+      "mae_secondary": 0.00016384199830004256,
+      "note": "MAE is descriptive only: not robust to proxy noise, never used to rank"
+    },
+    "ewma_w250": {
+      "mse": 2.368643641205404e-07,
+      "qlike": -8.388213656816331,
+      "mae_secondary": 0.00014245584381136414,
+      "note": "MAE is descriptive only: not robust to proxy noise, never used to rank"
+    },
+    "garch_w250": {
+      "mse": 2.0324712924270486e-07,
+      "qlike": -8.387088204004032,
+      "mae_secondary": 0.00013345556339469596,
+      "note": "MAE is descriptive only: not robust to proxy noise, never used to rank"
+    }
+  },
+  "diebold_mariano": {
+    "F1_primary": {
+      "ewma_vs_naive_qlike": {
+        "a": "ewma_primary",
+        "b": "naive_primary",
+        "statistic": -3.2355491006609394,
+        "p_value": 0.0012298490234085087,
+        "mean_difference_a_minus_b": -0.37439013439029384,
+        "lag": 8,
+        "lower_mean_loss": "ewma_primary",
+        "holm_adjusted_p": 0.006149245117042543,
+        "significant": true,
+        "kind": "significant difference"
+      },
+      "ewma_vs_naive_mse": {
+        "a": "ewma_primary",
+        "b": "naive_primary",
+        "statistic": -1.2982003216576765,
+        "p_value": 0.1943376365186878,
+        "mean_difference_a_minus_b": -4.9152815252739796e-08,
+        "lag": 8,
+        "lower_mean_loss": "ewma_primary",
+        "holm_adjusted_p": 0.5399403457493798,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_vs_naive_qlike": {
+        "a": "garch_primary",
+        "b": "naive_primary",
+        "statistic": -3.6308061032063996,
+        "p_value": 0.0002881826692973425,
+        "mean_difference_a_minus_b": -0.4386883128379927,
+        "lag": 8,
+        "lower_mean_loss": "garch_primary",
+        "holm_adjusted_p": 0.001729096015784055,
+        "significant": true,
+        "kind": "significant difference"
+      },
+      "garch_vs_naive_mse": {
+        "a": "garch_primary",
+        "b": "naive_primary",
+        "statistic": -1.34118955867345,
+        "p_value": 0.17998011524979327,
+        "mean_difference_a_minus_b": -8.227250771964405e-08,
+        "lag": 8,
+        "lower_mean_loss": "garch_primary",
+        "holm_adjusted_p": 0.5399403457493798,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_vs_ewma_qlike": {
+        "a": "garch_primary",
+        "b": "ewma_primary",
+        "statistic": -2.7501843314578562,
+        "p_value": 0.005998835235067451,
+        "mean_difference_a_minus_b": -0.06429817844769889,
+        "lag": 8,
+        "lower_mean_loss": "garch_primary",
+        "holm_adjusted_p": 0.023995340940269803,
+        "significant": true,
+        "kind": "significant difference"
+      },
+      "garch_vs_ewma_mse": {
+        "a": "garch_primary",
+        "b": "ewma_primary",
+        "statistic": -1.2586343139909004,
+        "p_value": 0.20827936038845368,
+        "mean_difference_a_minus_b": -3.3119692466904243e-08,
+        "lag": 8,
+        "lower_mean_loss": "garch_primary",
+        "holm_adjusted_p": 0.5399403457493798,
+        "significant": false,
+        "kind": "descriptive difference"
+      }
+    },
+    "F2_primary": {
+      "naive_normal_primary_vs_frozen_historical": {
+        "a": "naive_normal_primary",
+        "b": "frozen_historical",
+        "statistic": 1.985114973272493,
+        "p_value": 0.047240230790446015,
+        "mean_difference_a_minus_b": 5.833586152326953e-05,
+        "lag": 8,
+        "lower_mean_loss": "frozen_historical",
+        "holm_adjusted_p": 0.5498837244427,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "naive_fhs_primary_vs_frozen_historical": {
+        "a": "naive_fhs_primary",
+        "b": "frozen_historical",
+        "statistic": 0.9449348079540515,
+        "p_value": 0.34478300122781363,
+        "mean_difference_a_minus_b": 1.4254335036020063e-05,
+        "lag": 8,
+        "lower_mean_loss": "frozen_historical",
+        "holm_adjusted_p": 0.8630319616895397,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_normal_primary_vs_frozen_historical": {
+        "a": "ewma_normal_primary",
+        "b": "frozen_historical",
+        "statistic": -1.3984854332821564,
+        "p_value": 0.16209073538554974,
+        "mean_difference_a_minus_b": -6.93776031092622e-05,
+        "lag": 8,
+        "lower_mean_loss": "ewma_normal_primary",
+        "holm_adjusted_p": 0.8104536769277487,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_fhs_primary_vs_frozen_historical": {
+        "a": "ewma_fhs_primary",
+        "b": "frozen_historical",
+        "statistic": -1.5265452809196767,
+        "p_value": 0.12699996497213126,
+        "mean_difference_a_minus_b": -0.00010594409240043638,
+        "lag": 8,
+        "lower_mean_loss": "ewma_fhs_primary",
+        "holm_adjusted_p": 0.7619997898327875,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_normal_primary_vs_frozen_historical": {
+        "a": "garch_normal_primary",
+        "b": "frozen_historical",
+        "statistic": -1.7635241057790763,
+        "p_value": 0.0779336385433237,
+        "mean_difference_a_minus_b": -0.00011538306175775653,
+        "lag": 8,
+        "lower_mean_loss": "garch_normal_primary",
+        "holm_adjusted_p": 0.5498837244427,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_fhs_primary_vs_frozen_historical": {
+        "a": "garch_fhs_primary",
+        "b": "frozen_historical",
+        "statistic": -1.8973581224581435,
+        "p_value": 0.057895216995248217,
+        "mean_difference_a_minus_b": -0.00012987897817984595,
+        "lag": 8,
+        "lower_mean_loss": "garch_fhs_primary",
+        "holm_adjusted_p": 0.5498837244427,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "naive_fhs_vs_normal_primary": {
+        "a": "naive_fhs_primary",
+        "b": "naive_normal_primary",
+        "statistic": -1.1615793255782518,
+        "p_value": 0.24551669858640365,
+        "mean_difference_a_minus_b": -4.408152648724947e-05,
+        "lag": 8,
+        "lower_mean_loss": "naive_fhs_primary",
+        "holm_adjusted_p": 0.8630319616895397,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_fhs_vs_normal_primary": {
+        "a": "ewma_fhs_primary",
+        "b": "ewma_normal_primary",
+        "statistic": -1.2381988633677987,
+        "p_value": 0.21575799042238492,
+        "mean_difference_a_minus_b": -3.65664892911742e-05,
+        "lag": 8,
+        "lower_mean_loss": "ewma_fhs_primary",
+        "holm_adjusted_p": 0.8630319616895397,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_fhs_vs_normal_primary": {
+        "a": "garch_fhs_primary",
+        "b": "garch_normal_primary",
+        "statistic": -1.049529899386333,
+        "p_value": 0.29403522207929755,
+        "mean_difference_a_minus_b": -1.4495916422089416e-05,
+        "lag": 8,
+        "lower_mean_loss": "garch_fhs_primary",
+        "holm_adjusted_p": 0.8630319616895397,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_vs_naive_normal_primary": {
+        "a": "ewma_normal_primary",
+        "b": "naive_normal_primary",
+        "statistic": -1.8237744368761188,
+        "p_value": 0.06830489836324556,
+        "mean_difference_a_minus_b": -0.0001277134646325317,
+        "lag": 8,
+        "lower_mean_loss": "ewma_normal_primary",
+        "holm_adjusted_p": 0.5498837244427,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_vs_naive_normal_primary": {
+        "a": "garch_normal_primary",
+        "b": "naive_normal_primary",
+        "statistic": -1.9980056229580152,
+        "p_value": 0.045823643703558334,
+        "mean_difference_a_minus_b": -0.00017371892328102607,
+        "lag": 8,
+        "lower_mean_loss": "garch_normal_primary",
+        "holm_adjusted_p": 0.5498837244427,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_vs_naive_fhs_primary": {
+        "a": "ewma_fhs_primary",
+        "b": "naive_fhs_primary",
+        "statistic": -1.9417627474505317,
+        "p_value": 0.05227745336871961,
+        "mean_difference_a_minus_b": -0.00012019842743645645,
+        "lag": 8,
+        "lower_mean_loss": "ewma_fhs_primary",
+        "holm_adjusted_p": 0.5498837244427,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_vs_naive_fhs_primary": {
+        "a": "garch_fhs_primary",
+        "b": "naive_fhs_primary",
+        "statistic": -2.3496528628423974,
+        "p_value": 0.018867918120892602,
+        "mean_difference_a_minus_b": -0.00014413331321586601,
+        "lag": 8,
+        "lower_mean_loss": "garch_fhs_primary",
+        "holm_adjusted_p": 0.24528293557160383,
+        "significant": false,
+        "kind": "descriptive difference"
+      }
+    },
+    "F1_w250": {
+      "ewma_vs_naive_qlike": {
+        "a": "ewma_w250",
+        "b": "naive_w250",
+        "statistic": -3.2355484070319616,
+        "p_value": 0.0012298519990288897,
+        "mean_difference_a_minus_b": -0.37439008438706,
+        "lag": 8,
+        "lower_mean_loss": "ewma_w250",
+        "holm_adjusted_p": 0.006149259995144448,
+        "significant": true,
+        "kind": "significant difference"
+      },
+      "ewma_vs_naive_mse": {
+        "a": "ewma_w250",
+        "b": "naive_w250",
+        "statistic": -1.2982000627382546,
+        "p_value": 0.19433772545419087,
+        "mean_difference_a_minus_b": -4.9152812867473596e-08,
+        "lag": 8,
+        "lower_mean_loss": "ewma_w250",
+        "holm_adjusted_p": 0.7773509018167635,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_vs_naive_qlike": {
+        "a": "garch_w250",
+        "b": "naive_w250",
+        "statistic": -3.326293792775951,
+        "p_value": 0.000892751794585264,
+        "mean_difference_a_minus_b": -0.37326463157475936,
+        "lag": 8,
+        "lower_mean_loss": "garch_w250",
+        "holm_adjusted_p": 0.005356510767511584,
+        "significant": true,
+        "kind": "significant difference"
+      },
+      "garch_vs_naive_mse": {
+        "a": "garch_w250",
+        "b": "naive_w250",
+        "statistic": -1.2371114312858085,
+        "p_value": 0.2161613050680817,
+        "mean_difference_a_minus_b": -8.277004774530915e-08,
+        "lag": 8,
+        "lower_mean_loss": "garch_w250",
+        "holm_adjusted_p": 0.7773509018167635,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_vs_ewma_qlike": {
+        "a": "garch_w250",
+        "b": "ewma_w250",
+        "statistic": 0.024781271453294822,
+        "p_value": 0.9802313972231209,
+        "mean_difference_a_minus_b": 0.0011254528123006014,
+        "lag": 8,
+        "lower_mean_loss": "ewma_w250",
+        "holm_adjusted_p": 0.9802313972231209,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_vs_ewma_mse": {
+        "a": "garch_w250",
+        "b": "ewma_w250",
+        "statistic": -0.9903491223936044,
+        "p_value": 0.3220988487065509,
+        "mean_difference_a_minus_b": -3.361723487783555e-08,
+        "lag": 8,
+        "lower_mean_loss": "garch_w250",
+        "holm_adjusted_p": 0.7773509018167635,
+        "significant": false,
+        "kind": "descriptive difference"
+      }
+    },
+    "F2_w250": {
+      "naive_normal_w250_vs_frozen_historical": {
+        "a": "naive_normal_w250",
+        "b": "frozen_historical",
+        "statistic": 1.985114973272493,
+        "p_value": 0.047240230790446015,
+        "mean_difference_a_minus_b": 5.833586152326953e-05,
+        "lag": 8,
+        "lower_mean_loss": "frozen_historical",
+        "holm_adjusted_p": 0.47240230790446014,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "naive_fhs_w250_vs_frozen_historical": {
+        "a": "naive_fhs_w250",
+        "b": "frozen_historical",
+        "statistic": 2.267844508980765,
+        "p_value": 0.023423233465496553,
+        "mean_difference_a_minus_b": 6.270404623792076e-05,
+        "lag": 8,
+        "lower_mean_loss": "frozen_historical",
+        "holm_adjusted_p": 0.2576555681204621,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_normal_w250_vs_frozen_historical": {
+        "a": "ewma_normal_w250",
+        "b": "frozen_historical",
+        "statistic": -1.3984850925914307,
+        "p_value": 0.16209083761247495,
+        "mean_difference_a_minus_b": -6.937759737519473e-05,
+        "lag": 8,
+        "lower_mean_loss": "ewma_normal_w250",
+        "holm_adjusted_p": 0.7505208318722968,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_fhs_w250_vs_frozen_historical": {
+        "a": "ewma_fhs_w250",
+        "b": "frozen_historical",
+        "statistic": -1.5287656864736705,
+        "p_value": 0.12644839632654903,
+        "mean_difference_a_minus_b": -0.00010811144028781228,
+        "lag": 8,
+        "lower_mean_loss": "ewma_fhs_w250",
+        "holm_adjusted_p": 0.7505208318722968,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_normal_w250_vs_frozen_historical": {
+        "a": "garch_normal_w250",
+        "b": "frozen_historical",
+        "statistic": -1.5342794265332416,
+        "p_value": 0.12508680531204946,
+        "mean_difference_a_minus_b": -9.996448091614375e-05,
+        "lag": 8,
+        "lower_mean_loss": "garch_normal_w250",
+        "holm_adjusted_p": 0.7505208318722968,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_fhs_w250_vs_frozen_historical": {
+        "a": "garch_fhs_w250",
+        "b": "frozen_historical",
+        "statistic": -1.6951100832959374,
+        "p_value": 0.09017842504680523,
+        "mean_difference_a_minus_b": -0.00011453902591098613,
+        "lag": 8,
+        "lower_mean_loss": "garch_fhs_w250",
+        "holm_adjusted_p": 0.6312489753276367,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "naive_fhs_vs_normal_w250": {
+        "a": "naive_fhs_w250",
+        "b": "naive_normal_w250",
+        "statistic": 0.0865066865374642,
+        "p_value": 0.9310705326443589,
+        "mean_difference_a_minus_b": 4.368184714651228e-06,
+        "lag": 8,
+        "lower_mean_loss": "naive_normal_w250",
+        "holm_adjusted_p": 0.9310705326443589,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_fhs_vs_normal_w250": {
+        "a": "ewma_fhs_w250",
+        "b": "ewma_normal_w250",
+        "statistic": -1.2540649497100014,
+        "p_value": 0.20993503799242294,
+        "mean_difference_a_minus_b": -3.873384291261753e-05,
+        "lag": 8,
+        "lower_mean_loss": "ewma_fhs_w250",
+        "holm_adjusted_p": 0.7505208318722968,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_fhs_vs_normal_w250": {
+        "a": "garch_fhs_w250",
+        "b": "garch_normal_w250",
+        "statistic": -1.207961956536746,
+        "p_value": 0.2271755614157952,
+        "mean_difference_a_minus_b": -1.4574544994842395e-05,
+        "lag": 8,
+        "lower_mean_loss": "garch_fhs_w250",
+        "holm_adjusted_p": 0.7505208318722968,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_vs_naive_normal_w250": {
+        "a": "ewma_normal_w250",
+        "b": "naive_normal_w250",
+        "statistic": -1.8237741415110837,
+        "p_value": 0.06830494305026734,
+        "mean_difference_a_minus_b": -0.00012771345889846426,
+        "lag": 8,
+        "lower_mean_loss": "ewma_normal_w250",
+        "holm_adjusted_p": 0.6060338110672128,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "garch_vs_naive_normal_w250": {
+        "a": "garch_normal_w250",
+        "b": "naive_normal_w250",
+        "statistic": -1.8302089171226361,
+        "p_value": 0.06733709011857919,
+        "mean_difference_a_minus_b": -0.00015830034243941328,
+        "lag": 8,
+        "lower_mean_loss": "garch_normal_w250",
+        "holm_adjusted_p": 0.6060338110672128,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_vs_naive_fhs_w250": {
+        "a": "ewma_fhs_w250",
+        "b": "naive_fhs_w250",
+        "statistic": -3.1479362236518034,
+        "p_value": 0.0016635568191493088,
+        "mean_difference_a_minus_b": -0.00017081548652573303,
+        "lag": 8,
+        "lower_mean_loss": "ewma_fhs_w250",
+        "holm_adjusted_p": 0.019962681829791704,
+        "significant": true,
+        "kind": "significant difference"
+      },
+      "garch_vs_naive_fhs_w250": {
+        "a": "garch_fhs_w250",
+        "b": "naive_fhs_w250",
+        "statistic": -3.458581136304775,
+        "p_value": 0.0005520660086223437,
+        "mean_difference_a_minus_b": -0.00017724307214890688,
+        "lag": 8,
+        "lower_mean_loss": "garch_fhs_w250",
+        "holm_adjusted_p": 0.0071768581120904675,
+        "significant": true,
+        "kind": "significant difference"
+      }
+    }
+  },
+  "holm_exclusions": {
+    "F1_primary": [],
+    "F2_primary": [],
+    "F1_w250": [],
+    "F2_w250": []
+  },
+  "regimes": {
+    "threshold": 0.224383438082287,
+    "n_high_vol_days": 336,
+    "note": "Per-regime figures are descriptive (docs/design_m13.md \u00a79.1): 3.36 expected exceptions in high volatility, power 0.36 against a doubled rate.",
+    "by_series": {
+      "naive_normal_primary": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 51,
+          "expected": 21.78000000000002,
+          "rate": 0.023415977961432508,
+          "binomial_p_descriptive": 6.183452550680702e-08,
+          "mean_var": 23650.774442444235,
+          "mean_qlike": -8.39113137975938
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 18,
+          "expected": 3.360000000000003,
+          "rate": 0.05357142857142857,
+          "binomial_p_descriptive": 1.438767204802314e-08,
+          "mean_var": 31584.486633086788,
+          "mean_qlike": -5.56806046420018
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 12,
+          "expected": 0.5200000000000005,
+          "rate": 0.23076923076923078,
+          "binomial_p_descriptive": 1.4247687087438088e-13,
+          "mean_var": 35351.52419711501,
+          "mean_qlike": 1.682641516810088
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 6,
+          "expected": 0.6300000000000006,
+          "rate": 0.09523809523809523,
+          "binomial_p_descriptive": 4.170364050099274e-05,
+          "mean_var": 21212.424876589266,
+          "mean_qlike": -6.758048653213469
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 16,
+          "expected": 2.5100000000000025,
+          "rate": 0.06374501992031872,
+          "binomial_p_descriptive": 7.962476396510774e-09,
+          "mean_var": 27670.124538118802,
+          "mean_qlike": -7.06691782618737
+        }
+      },
+      "naive_fhs_primary": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 20,
+          "expected": 21.78000000000002,
+          "rate": 0.009182736455463728,
+          "binomial_p_descriptive": 0.8290333810442306,
+          "mean_var": 34141.09744705863,
+          "mean_qlike": -8.39113137975938
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 8,
+          "expected": 3.360000000000003,
+          "rate": 0.023809523809523808,
+          "binomial_p_descriptive": 0.021105931452861586,
+          "mean_var": 48902.55731276255,
+          "mean_qlike": -5.56806046420018
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 8,
+          "expected": 0.5200000000000005,
+          "rate": 0.15384615384615385,
+          "binomial_p_descriptive": 5.085494048709118e-08,
+          "mean_var": 57562.48593817113,
+          "mean_qlike": 1.682641516810088
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 3,
+          "expected": 0.6300000000000006,
+          "rate": 0.047619047619047616,
+          "binomial_p_descriptive": 0.025454379828033263,
+          "mean_var": 29191.77041708167,
+          "mean_qlike": -6.758048653213469
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 2,
+          "expected": 2.5100000000000025,
+          "rate": 0.00796812749003984,
+          "binomial_p_descriptive": 1.0,
+          "mean_var": 42336.07689608599,
+          "mean_qlike": -7.06691782618737
+        }
+      },
+      "ewma_normal_primary": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 55,
+          "expected": 21.78000000000002,
+          "rate": 0.025252525252525252,
+          "binomial_p_descriptive": 1.6642953509370917e-09,
+          "mean_var": 18798.516109328524,
+          "mean_qlike": -8.61020328270047
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 4,
+          "expected": 3.360000000000003,
+          "rate": 0.011904761904761904,
+          "binomial_p_descriptive": 0.5833398227515172,
+          "mean_var": 47309.32247060737,
+          "mean_qlike": -6.949245563162989
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 6,
+          "expected": 0.5200000000000005,
+          "rate": 0.11538461538461539,
+          "binomial_p_descriptive": 1.372424988612523e-05,
+          "mean_var": 79382.48392308252,
+          "mean_qlike": -4.714590420297368
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 4,
+          "expected": 0.6300000000000006,
+          "rate": 0.06349206349206349,
+          "binomial_p_descriptive": 0.0037262424020537014,
+          "mean_var": 26957.855755972178,
+          "mean_qlike": -6.4948883356581355
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 4,
+          "expected": 2.5100000000000025,
+          "rate": 0.01593625498007968,
+          "binomial_p_descriptive": 0.32428071048016854,
+          "mean_var": 34584.819220681056,
+          "mean_qlike": -7.340007708751057
+        }
+      },
+      "ewma_fhs_primary": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 23,
+          "expected": 21.78000000000002,
+          "rate": 0.010560146923783287,
+          "binomial_p_descriptive": 0.7462804956071296,
+          "mean_var": 25794.517582449724,
+          "mean_qlike": -8.61020328270047
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 2,
+          "expected": 3.360000000000003,
+          "rate": 0.005952380952380952,
+          "binomial_p_descriptive": 0.7794540424706922,
+          "mean_var": 69057.70256348861,
+          "mean_qlike": -6.949245563162989
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 3,
+          "expected": 0.5200000000000005,
+          "rate": 0.057692307692307696,
+          "binomial_p_descriptive": 0.015352625733659125,
+          "mean_var": 125304.5077525662,
+          "mean_qlike": -4.714590420297368
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 1,
+          "expected": 0.6300000000000006,
+          "rate": 0.015873015873015872,
+          "binomial_p_descriptive": 0.46909445704488684,
+          "mean_var": 38584.00944945682,
+          "mean_qlike": -6.4948883356581355
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 1,
+          "expected": 2.5100000000000025,
+          "rate": 0.00398406374501992,
+          "binomial_p_descriptive": 0.5277375860472437,
+          "mean_var": 48421.85078829465,
+          "mean_qlike": -7.340007708751057
+        }
+      },
+      "garch_normal_primary": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 52,
+          "expected": 21.78000000000002,
+          "rate": 0.023875114784205693,
+          "binomial_p_descriptive": 2.9464598594910947e-08,
+          "mean_var": 19269.481006049737,
+          "mean_qlike": -8.668938605417987
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 4,
+          "expected": 3.360000000000003,
+          "rate": 0.011904761904761904,
+          "binomial_p_descriptive": 0.5833398227515172,
+          "mean_var": 43245.869383783946,
+          "mean_qlike": -7.049602967147404
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 3,
+          "expected": 0.5200000000000005,
+          "rate": 0.057692307692307696,
+          "binomial_p_descriptive": 0.015352625733659125,
+          "mean_var": 74321.0116706297,
+          "mean_qlike": -5.336303062083535
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 3,
+          "expected": 0.6300000000000006,
+          "rate": 0.047619047619047616,
+          "binomial_p_descriptive": 0.025454379828033263,
+          "mean_var": 28395.765471923023,
+          "mean_qlike": -6.876269169221168
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 6,
+          "expected": 2.5100000000000025,
+          "rate": 0.02390438247011952,
+          "binomial_p_descriptive": 0.04184947596011375,
+          "mean_var": 34117.167165394494,
+          "mean_qlike": -7.276832332066663
+        }
+      },
+      "garch_fhs_primary": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 27,
+          "expected": 21.78000000000002,
+          "rate": 0.012396694214876033,
+          "binomial_p_descriptive": 0.27943245899947045,
+          "mean_var": 24007.264937515887,
+          "mean_qlike": -8.668938605417987
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 1,
+          "expected": 3.360000000000003,
+          "rate": 0.002976190476190476,
+          "binomial_p_descriptive": 0.2734919919691794,
+          "mean_var": 56972.762104751266,
+          "mean_qlike": -7.049602967147404
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 1,
+          "expected": 0.5200000000000005,
+          "rate": 0.019230769230769232,
+          "binomial_p_descriptive": 0.40703355359850063,
+          "mean_var": 106504.4815011724,
+          "mean_qlike": -5.336303062083535
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 2,
+          "expected": 0.6300000000000006,
+          "rate": 0.031746031746031744,
+          "binomial_p_descriptive": 0.13124547516435983,
+          "mean_var": 38967.74289095166,
+          "mean_qlike": -6.876269169221168
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 2,
+          "expected": 2.5100000000000025,
+          "rate": 0.00796812749003984,
+          "binomial_p_descriptive": 1.0,
+          "mean_var": 43229.04234521946,
+          "mean_qlike": -7.276832332066663
+        }
+      },
+      "naive_normal_w250": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 51,
+          "expected": 21.78000000000002,
+          "rate": 0.023415977961432508,
+          "binomial_p_descriptive": 6.183452550680702e-08,
+          "mean_var": 23650.774442444235,
+          "mean_qlike": -8.39113137975938
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 18,
+          "expected": 3.360000000000003,
+          "rate": 0.05357142857142857,
+          "binomial_p_descriptive": 1.438767204802314e-08,
+          "mean_var": 31584.486633086788,
+          "mean_qlike": -5.56806046420018
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 12,
+          "expected": 0.5200000000000005,
+          "rate": 0.23076923076923078,
+          "binomial_p_descriptive": 1.4247687087438088e-13,
+          "mean_var": 35351.52419711501,
+          "mean_qlike": 1.682641516810088
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 6,
+          "expected": 0.6300000000000006,
+          "rate": 0.09523809523809523,
+          "binomial_p_descriptive": 4.170364050099274e-05,
+          "mean_var": 21212.424876589266,
+          "mean_qlike": -6.758048653213469
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 16,
+          "expected": 2.5100000000000025,
+          "rate": 0.06374501992031872,
+          "binomial_p_descriptive": 7.962476396510774e-09,
+          "mean_var": 27670.124538118802,
+          "mean_qlike": -7.06691782618737
+        }
+      },
+      "naive_fhs_w250": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 41,
+          "expected": 21.78000000000002,
+          "rate": 0.018824609733700644,
+          "binomial_p_descriptive": 0.00020601297249733173,
+          "mean_var": 35053.02666828108,
+          "mean_qlike": -8.39113137975938
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 7,
+          "expected": 3.360000000000003,
+          "rate": 0.020833333333333332,
+          "binomial_p_descriptive": 0.054112721314911474,
+          "mean_var": 65031.133456372634,
+          "mean_qlike": -5.56806046420018
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 7,
+          "expected": 0.5200000000000005,
+          "rate": 0.1346153846153846,
+          "binomial_p_descriptive": 9.019728938015072e-07,
+          "mean_var": 92548.96257213016,
+          "mean_qlike": 1.682641516810088
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 0,
+          "expected": 0.6300000000000006,
+          "rate": 0.0,
+          "binomial_p_descriptive": 1.0,
+          "mean_var": 40886.38272311933,
+          "mean_qlike": -6.758048653213469
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 9,
+          "expected": 2.5100000000000025,
+          "rate": 0.035856573705179286,
+          "binomial_p_descriptive": 0.0010862205595013454,
+          "mean_var": 38263.66874275732,
+          "mean_qlike": -7.06691782618737
+        }
+      },
+      "ewma_normal_w250": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 55,
+          "expected": 21.78000000000002,
+          "rate": 0.025252525252525252,
+          "binomial_p_descriptive": 1.6642953509370917e-09,
+          "mean_var": 18798.513905108863,
+          "mean_qlike": -8.610203225385634
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 4,
+          "expected": 3.360000000000003,
+          "rate": 0.011904761904761904,
+          "binomial_p_descriptive": 0.5833398227515172,
+          "mean_var": 47309.32633267972,
+          "mean_qlike": -6.949245560554611
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 6,
+          "expected": 0.5200000000000005,
+          "rate": 0.11538461538461539,
+          "binomial_p_descriptive": 1.372424988612523e-05,
+          "mean_var": 79382.49089222644,
+          "mean_qlike": -4.714590497590191
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 4,
+          "expected": 0.6300000000000006,
+          "rate": 0.06349206349206349,
+          "binomial_p_descriptive": 0.0037262424020537014,
+          "mean_var": 26957.85802492029,
+          "mean_qlike": -6.494888452151758
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 4,
+          "expected": 2.5100000000000025,
+          "rate": 0.01593625498007968,
+          "binomial_p_descriptive": 0.32428071048016854,
+          "mean_var": 34584.82150787398,
+          "mean_qlike": -7.340007715944602
+        }
+      },
+      "ewma_fhs_w250": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 30,
+          "expected": 21.78000000000002,
+          "rate": 0.013774104683195593,
+          "binomial_p_descriptive": 0.08369988265616995,
+          "mean_var": 24726.1846050616,
+          "mean_qlike": -8.610203225385634
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 1,
+          "expected": 3.360000000000003,
+          "rate": 0.002976190476190476,
+          "binomial_p_descriptive": 0.2734919919691794,
+          "mean_var": 69243.63760044698,
+          "mean_qlike": -6.949245560554611
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 2,
+          "expected": 0.5200000000000005,
+          "rate": 0.038461538461538464,
+          "binomial_p_descriptive": 0.0955764302360967,
+          "mean_var": 130766.88690411756,
+          "mean_qlike": -4.714590497590191
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 1,
+          "expected": 0.6300000000000006,
+          "rate": 0.015873015873015872,
+          "binomial_p_descriptive": 0.46909445704488684,
+          "mean_var": 40559.41242293825,
+          "mean_qlike": -6.494888452151758
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 2,
+          "expected": 2.5100000000000025,
+          "rate": 0.00796812749003984,
+          "binomial_p_descriptive": 1.0,
+          "mean_var": 41318.91692587136,
+          "mean_qlike": -7.340007715944602
+        }
+      },
+      "garch_normal_w250": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 54,
+          "expected": 21.78000000000002,
+          "rate": 0.024793388429752067,
+          "binomial_p_descriptive": 3.81833080103741e-09,
+          "mean_var": 19216.2014659679,
+          "mean_qlike": -8.59909170400113
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 5,
+          "expected": 3.360000000000003,
+          "rate": 0.01488095238095238,
+          "binomial_p_descriptive": 0.3978807221018713,
+          "mean_var": 43134.20333694839,
+          "mean_qlike": -7.012851230808546
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 3,
+          "expected": 0.5200000000000005,
+          "rate": 0.057692307692307696,
+          "binomial_p_descriptive": 0.015352625733659125,
+          "mean_var": 80731.59655854128,
+          "mean_qlike": -5.39630224669238
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 3,
+          "expected": 0.6300000000000006,
+          "rate": 0.047619047619047616,
+          "binomial_p_descriptive": 0.025454379828033263,
+          "mean_var": 29483.359174335666,
+          "mean_qlike": -6.749065213609983
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 6,
+          "expected": 2.5100000000000025,
+          "rate": 0.02390438247011952,
+          "binomial_p_descriptive": 0.04184947596011375,
+          "mean_var": 33899.17004528377,
+          "mean_qlike": -7.288827278890205
+        }
+      },
+      "garch_fhs_w250": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 38,
+          "expected": 21.78000000000002,
+          "rate": 0.017447199265381085,
+          "binomial_p_descriptive": 0.0015976359591836587,
+          "mean_var": 22683.45195359129,
+          "mean_qlike": -8.59909170400113
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 1,
+          "expected": 3.360000000000003,
+          "rate": 0.002976190476190476,
+          "binomial_p_descriptive": 0.2734919919691794,
+          "mean_var": 52688.5852351086,
+          "mean_qlike": -7.012851230808546
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 1,
+          "expected": 0.5200000000000005,
+          "rate": 0.019230769230769232,
+          "binomial_p_descriptive": 0.40703355359850063,
+          "mean_var": 105371.49111678217,
+          "mean_qlike": -5.39630224669238
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 1,
+          "expected": 0.6300000000000006,
+          "rate": 0.015873015873015872,
+          "binomial_p_descriptive": 0.46909445704488684,
+          "mean_var": 41756.417974937314,
+          "mean_qlike": -6.749065213609983
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 5,
+          "expected": 2.5100000000000025,
+          "rate": 0.0199203187250996,
+          "binomial_p_descriptive": 0.10915308238776246,
+          "mean_var": 36262.155644572034,
+          "mean_qlike": -7.288827278890205
+        }
+      },
+      "garch_fhs_oos_primary": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 26,
+          "expected": 21.78000000000002,
+          "rate": 0.011937557392102846,
+          "binomial_p_descriptive": 0.33261448934232807,
+          "mean_var": 24743.576197714945,
+          "mean_qlike": -8.668938605417987
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 1,
+          "expected": 3.360000000000003,
+          "rate": 0.002976190476190476,
+          "binomial_p_descriptive": 0.2734919919691794,
+          "mean_var": 58632.33927500515,
+          "mean_qlike": -7.049602967147404
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 1,
+          "expected": 0.5200000000000005,
+          "rate": 0.019230769230769232,
+          "binomial_p_descriptive": 0.40703355359850063,
+          "mean_var": 104596.2264686649,
+          "mean_qlike": -5.336303062083535
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 2,
+          "expected": 0.6300000000000006,
+          "rate": 0.031746031746031744,
+          "binomial_p_descriptive": 0.13124547516435983,
+          "mean_var": 38516.50457641871,
+          "mean_qlike": -6.876269169221168
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 1,
+          "expected": 2.5100000000000025,
+          "rate": 0.00398406374501992,
+          "binomial_p_descriptive": 0.5277375860472437,
+          "mean_var": 47032.469870213055,
+          "mean_qlike": -7.276832332066663
+        }
+      },
+      "frozen_historical": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 30,
+          "expected": 21.78000000000002,
+          "rate": 0.013774104683195593,
+          "binomial_p_descriptive": 0.08369988265616995,
+          "mean_var": 28716.144623986624
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 11,
+          "expected": 3.360000000000003,
+          "rate": 0.03273809523809524,
+          "binomial_p_descriptive": 0.0006801686388297698,
+          "mean_var": 41644.49477257525
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 8,
+          "expected": 0.5200000000000005,
+          "rate": 0.15384615384615385,
+          "binomial_p_descriptive": 5.085494048709118e-08,
+          "mean_var": 53432.90754712257
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 3,
+          "expected": 0.6300000000000006,
+          "rate": 0.047619047619047616,
+          "binomial_p_descriptive": 0.025454379828033263,
+          "mean_var": 30396.144609416722
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 10,
+          "expected": 2.5100000000000025,
+          "rate": 0.0398406374501992,
+          "binomial_p_descriptive": 0.0002582534930266727,
+          "mean_var": 31935.591100120073
+        }
+      },
+      "frozen_parametric": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 53,
+          "expected": 21.78000000000002,
+          "rate": 0.024334251606978878,
+          "binomial_p_descriptive": 9.237377161619034e-09,
+          "mean_var": 23034.901763516005
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 19,
+          "expected": 3.360000000000003,
+          "rate": 0.05654761904761905,
+          "binomial_p_descriptive": 2.4072196682405714e-09,
+          "mean_var": 31679.050719345356
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 12,
+          "expected": 0.5200000000000005,
+          "rate": 0.23076923076923078,
+          "binomial_p_descriptive": 1.4247687087438088e-13,
+          "mean_var": 35409.715801508486
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 6,
+          "expected": 0.6300000000000006,
+          "rate": 0.09523809523809523,
+          "binomial_p_descriptive": 4.170364050099274e-05,
+          "mean_var": 21017.670176330987
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 17,
+          "expected": 2.5100000000000025,
+          "rate": 0.06772908366533864,
+          "binomial_p_descriptive": 1.1014514780661844e-09,
+          "mean_var": 27808.156092293408
+        }
+      },
+      "frozen_monte_carlo": {
+        "normal": {
+          "n_days": 2178,
+          "exceptions": 53,
+          "expected": 21.78000000000002,
+          "rate": 0.024334251606978878,
+          "binomial_p_descriptive": 9.237377161619034e-09,
+          "mean_var": 23031.37869535494
+        },
+        "high_vol": {
+          "n_days": 336,
+          "exceptions": 19,
+          "expected": 3.360000000000003,
+          "rate": 0.05654761904761905,
+          "binomial_p_descriptive": 2.4072196682405714e-09,
+          "mean_var": 31663.850752667226
+        },
+        "covid_crash": {
+          "n_days": 52,
+          "exceptions": 12,
+          "expected": 0.5200000000000005,
+          "rate": 0.23076923076923078,
+          "binomial_p_descriptive": 1.4247687087438088e-13,
+          "mean_var": 35369.450472623816
+        },
+        "q4_2018_selloff": {
+          "n_days": 63,
+          "exceptions": 6,
+          "expected": 0.6300000000000006,
+          "rate": 0.09523809523809523,
+          "binomial_p_descriptive": 4.170364050099274e-05,
+          "mean_var": 21032.5274471135
+        },
+        "bear_market_2022": {
+          "n_days": 251,
+          "exceptions": 17,
+          "expected": 2.5100000000000025,
+          "rate": 0.06772908366533864,
+          "binomial_p_descriptive": 1.1014514780661844e-09,
+          "mean_var": 27800.516990398355
+        }
+      }
+    },
+    "reaction": {
+      "naive_primary": {
+        "n_episodes": 16,
+        "reaction_days": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          49,
+          0,
+          0,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "median_reaction_days": 0.0,
+        "n_never_caught_up": 13,
+        "mean_overshoot_after_exit": 0.07185038651196173,
+        "kind": "descriptive difference"
+      },
+      "ewma_primary": {
+        "n_episodes": 16,
+        "reaction_days": [
+          null,
+          null,
+          0,
+          null,
+          null,
+          0,
+          2,
+          null,
+          0,
+          0,
+          null,
+          null,
+          1,
+          0,
+          0,
+          0
+        ],
+        "median_reaction_days": 0.0,
+        "n_never_caught_up": 7,
+        "mean_overshoot_after_exit": 0.1026097941983795,
+        "kind": "descriptive difference"
+      },
+      "garch_primary": {
+        "n_episodes": 16,
+        "reaction_days": [
+          null,
+          null,
+          0,
+          null,
+          null,
+          0,
+          2,
+          null,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ],
+        "median_reaction_days": 0.0,
+        "n_never_caught_up": 5,
+        "mean_overshoot_after_exit": -0.06957163987083502,
+        "kind": "descriptive difference"
+      },
+      "naive_w250": {
+        "n_episodes": 16,
+        "reaction_days": [
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          null,
+          49,
+          0,
+          0,
+          null,
+          null,
+          null,
+          null,
+          null
+        ],
+        "median_reaction_days": 0.0,
+        "n_never_caught_up": 13,
+        "mean_overshoot_after_exit": 0.07185038651196173,
+        "kind": "descriptive difference"
+      },
+      "ewma_w250": {
+        "n_episodes": 16,
+        "reaction_days": [
+          null,
+          null,
+          0,
+          null,
+          null,
+          0,
+          2,
+          null,
+          0,
+          0,
+          null,
+          null,
+          1,
+          0,
+          0,
+          0
+        ],
+        "median_reaction_days": 0.0,
+        "n_never_caught_up": 7,
+        "mean_overshoot_after_exit": 0.10260985739343854,
+        "kind": "descriptive difference"
+      },
+      "garch_w250": {
+        "n_episodes": 16,
+        "reaction_days": [
+          0,
+          null,
+          null,
+          null,
+          0,
+          0,
+          1,
+          null,
+          0,
+          0,
+          0,
+          null,
+          0,
+          0,
+          0,
+          0
+        ],
+        "median_reaction_days": 0.0,
+        "n_never_caught_up": 5,
+        "mean_overshoot_after_exit": -0.031792170673759786,
+        "kind": "descriptive difference"
+      }
+    },
+    "overlays_as_published": {
+      "q4_2018_selloff": {
+        "start": "2018-10-01",
+        "end": "2018-12-31",
+        "n_days": 63,
+        "worst_return": -0.032939,
+        "realized_volatility_annualised": 0.2368,
+        "naive_normal_primary_exceptions": 6,
+        "naive_normal_primary_mean_var": 21212.42,
+        "naive_fhs_primary_exceptions": 3,
+        "naive_fhs_primary_mean_var": 29191.77,
+        "ewma_normal_primary_exceptions": 4,
+        "ewma_normal_primary_mean_var": 26957.86,
+        "ewma_fhs_primary_exceptions": 1,
+        "ewma_fhs_primary_mean_var": 38584.01,
+        "garch_normal_primary_exceptions": 3,
+        "garch_normal_primary_mean_var": 28395.77,
+        "garch_fhs_primary_exceptions": 2,
+        "garch_fhs_primary_mean_var": 38967.74,
+        "naive_normal_w250_exceptions": 6,
+        "naive_normal_w250_mean_var": 21212.42,
+        "naive_fhs_w250_exceptions": 0,
+        "naive_fhs_w250_mean_var": 40886.38,
+        "ewma_normal_w250_exceptions": 4,
+        "ewma_normal_w250_mean_var": 26957.86,
+        "ewma_fhs_w250_exceptions": 1,
+        "ewma_fhs_w250_mean_var": 40559.41,
+        "garch_normal_w250_exceptions": 3,
+        "garch_normal_w250_mean_var": 29483.36,
+        "garch_fhs_w250_exceptions": 1,
+        "garch_fhs_w250_mean_var": 41756.42,
+        "garch_fhs_oos_primary_exceptions": 2,
+        "garch_fhs_oos_primary_mean_var": 38516.5,
+        "frozen_historical_exceptions": 3,
+        "frozen_historical_mean_var": 30396.14,
+        "frozen_parametric_exceptions": 6,
+        "frozen_parametric_mean_var": 21017.67,
+        "frozen_monte_carlo_exceptions": 6,
+        "frozen_monte_carlo_mean_var": 21032.53
+      },
+      "covid_crash": {
+        "start": "2020-02-15",
+        "end": "2020-04-30",
+        "n_days": 52,
+        "worst_return": -0.115887,
+        "realized_volatility_annualised": 0.6531,
+        "naive_normal_primary_exceptions": 12,
+        "naive_normal_primary_mean_var": 35351.52,
+        "naive_fhs_primary_exceptions": 8,
+        "naive_fhs_primary_mean_var": 57562.49,
+        "ewma_normal_primary_exceptions": 6,
+        "ewma_normal_primary_mean_var": 79382.48,
+        "ewma_fhs_primary_exceptions": 3,
+        "ewma_fhs_primary_mean_var": 125304.51,
+        "garch_normal_primary_exceptions": 3,
+        "garch_normal_primary_mean_var": 74321.01,
+        "garch_fhs_primary_exceptions": 1,
+        "garch_fhs_primary_mean_var": 106504.48,
+        "naive_normal_w250_exceptions": 12,
+        "naive_normal_w250_mean_var": 35351.52,
+        "naive_fhs_w250_exceptions": 7,
+        "naive_fhs_w250_mean_var": 92548.96,
+        "ewma_normal_w250_exceptions": 6,
+        "ewma_normal_w250_mean_var": 79382.49,
+        "ewma_fhs_w250_exceptions": 2,
+        "ewma_fhs_w250_mean_var": 130766.89,
+        "garch_normal_w250_exceptions": 3,
+        "garch_normal_w250_mean_var": 80731.6,
+        "garch_fhs_w250_exceptions": 1,
+        "garch_fhs_w250_mean_var": 105371.49,
+        "garch_fhs_oos_primary_exceptions": 1,
+        "garch_fhs_oos_primary_mean_var": 104596.23,
+        "frozen_historical_exceptions": 8,
+        "frozen_historical_mean_var": 53432.91,
+        "frozen_parametric_exceptions": 12,
+        "frozen_parametric_mean_var": 35409.72,
+        "frozen_monte_carlo_exceptions": 12,
+        "frozen_monte_carlo_mean_var": 35369.45
+      },
+      "bear_market_2022": {
+        "start": "2022-01-01",
+        "end": "2022-12-31",
+        "n_days": 251,
+        "worst_return": -0.044456,
+        "realized_volatility_annualised": 0.2426,
+        "naive_normal_primary_exceptions": 16,
+        "naive_normal_primary_mean_var": 27670.12,
+        "naive_fhs_primary_exceptions": 2,
+        "naive_fhs_primary_mean_var": 42336.08,
+        "ewma_normal_primary_exceptions": 4,
+        "ewma_normal_primary_mean_var": 34584.82,
+        "ewma_fhs_primary_exceptions": 1,
+        "ewma_fhs_primary_mean_var": 48421.85,
+        "garch_normal_primary_exceptions": 6,
+        "garch_normal_primary_mean_var": 34117.17,
+        "garch_fhs_primary_exceptions": 2,
+        "garch_fhs_primary_mean_var": 43229.04,
+        "naive_normal_w250_exceptions": 16,
+        "naive_normal_w250_mean_var": 27670.12,
+        "naive_fhs_w250_exceptions": 9,
+        "naive_fhs_w250_mean_var": 38263.67,
+        "ewma_normal_w250_exceptions": 4,
+        "ewma_normal_w250_mean_var": 34584.82,
+        "ewma_fhs_w250_exceptions": 2,
+        "ewma_fhs_w250_mean_var": 41318.92,
+        "garch_normal_w250_exceptions": 6,
+        "garch_normal_w250_mean_var": 33899.17,
+        "garch_fhs_w250_exceptions": 5,
+        "garch_fhs_w250_mean_var": 36262.16,
+        "garch_fhs_oos_primary_exceptions": 1,
+        "garch_fhs_oos_primary_mean_var": 47032.47,
+        "frozen_historical_exceptions": 10,
+        "frozen_historical_mean_var": 31935.59,
+        "frozen_parametric_exceptions": 17,
+        "frozen_parametric_mean_var": 27808.16,
+        "frozen_monte_carlo_exceptions": 17,
+        "frozen_monte_carlo_mean_var": 27800.52
+      }
+    }
+  },
+  "spearman_qlike_vs_quantile_loss": {
+    "all_series": {
+      "n": 12,
+      "rho": 0.8188945202491696
+    },
+    "normal": {
+      "n": 6,
+      "rho": 0.823529411764706
+    },
+    "fhs": {
+      "n": 6,
+      "rho": 0.753702346348183
+    },
+    "kind": "descriptive difference"
+  },
+  "decomposition_primary": [
+    {
+      "rung": "frozen parametric (sample mean, 250)",
+      "series": "frozen_parametric",
+      "exception_rate": 0.02864,
+      "mean_quantile_loss": 0.0005717843480280407,
+      "kupiec_p": 0.0,
+      "kind": "descriptive difference"
+    },
+    {
+      "rung": "(a) mean effect: Naive-Normal, zero mean",
+      "series": "naive_normal_primary",
+      "exception_rate": 0.027446,
+      "mean_quantile_loss": 0.0005652683360399221,
+      "kupiec_p": 0.0,
+      "kind": "descriptive difference"
+    },
+    {
+      "rung": "(b) dynamics: EWMA-Normal",
+      "series": "ewma_normal_primary",
+      "exception_rate": 0.023469,
+      "mean_quantile_loss": 0.00043755487140739036,
+      "kupiec_p": 0.0,
+      "kind": "descriptive difference"
+    },
+    {
+      "rung": "(b) dynamics: GARCH-Normal",
+      "series": "garch_normal_primary",
+      "exception_rate": 0.022275,
+      "mean_quantile_loss": 0.000391549412758896,
+      "kupiec_p": 0.0,
+      "kind": "descriptive difference"
+    },
+    {
+      "rung": "(c) tails: Naive-FHS",
+      "series": "naive_fhs_primary",
+      "exception_rate": 0.011138,
+      "mean_quantile_loss": 0.0005211868095526726,
+      "kupiec_p": 0.573435,
+      "kind": "descriptive difference"
+    },
+    {
+      "rung": "(c) tails: EWMA-FHS",
+      "series": "ewma_fhs_primary",
+      "exception_rate": 0.009944,
+      "mean_quantile_loss": 0.0004009883821162162,
+      "kupiec_p": 0.977592,
+      "kind": "descriptive difference"
+    },
+    {
+      "rung": "(c) tails: GARCH-FHS",
+      "series": "garch_fhs_primary",
+      "exception_rate": 0.011138,
+      "mean_quantile_loss": 0.0003770534963368066,
+      "kupiec_p": 0.573435,
+      "kind": "descriptive difference"
+    },
+    {
+      "rung": "reference: frozen historical",
+      "series": "frozen_historical",
+      "exception_rate": 0.016309,
+      "mean_quantile_loss": 0.0005069324745166525,
+      "kupiec_p": 0.003574,
+      "kind": "descriptive difference"
+    }
+  ],
+  "garch": {
+    "primary": {
+      "n_refits": 121,
+      "n_failed": 0,
+      "failed_refits": [],
+      "n_near_igarch": 0,
+      "stale_days": 0,
+      "stale_share": 0.0
+    },
+    "primary_pre_oos": {
+      "n_refits": 48,
+      "n_failed": 0,
+      "failed_refits": [],
+      "n_near_igarch": 0
+    },
+    "w250": {
+      "n_refits": 121,
+      "n_failed": 6,
+      "failed_refits": [
+        "2020-05-01",
+        "2020-06-01",
+        "2020-07-01",
+        "2020-08-03",
+        "2020-09-01",
+        "2020-10-01"
+      ],
+      "n_near_igarch": 3,
+      "stale_days": 128,
+      "stale_share": 0.05091487669053302
+    }
+  },
+  "hypotheses": {
+    "rule_source": "docs/design_m13.md \u00a710, clarified in \u00a713 and ratified in \u00a716 before the first OOS run",
+    "test_level": 0.05,
+    "H1": {
+      "statement": "EWMA-Normal improves on Naive-Normal",
+      "dm_quantile_loss": {
+        "a": "ewma_normal_primary",
+        "b": "naive_normal_primary",
+        "statistic": -1.8237744368761188,
+        "p_value": 0.06830489836324556,
+        "mean_difference_a_minus_b": -0.0001277134646325317,
+        "lag": 8,
+        "lower_mean_loss": "ewma_normal_primary",
+        "holm_adjusted_p": 0.5498837244427,
+        "significant": false,
+        "kind": "descriptive difference"
+      },
+      "ewma_normal_christoffersen_independence_p": 0.061448,
+      "supported": false
+    },
+    "H2": {
+      "statement": "GARCH is more responsive than Naive (QLIKE, full sample)",
+      "dm_qlike": {
+        "a": "garch_primary",
+        "b": "naive_primary",
+        "statistic": -3.6308061032063996,
+        "p_value": 0.0002881826692973425,
+        "mean_difference_a_minus_b": -0.4386883128379927,
+        "lag": 8,
+        "lower_mean_loss": "garch_primary",
+        "holm_adjusted_p": 0.001729096015784055,
+        "significant": true,
+        "kind": "significant difference"
+      },
+      "supported": true
+    },
+    "H3": {
+      "statement": "the lowest-QLIKE model under Normal rejects Kupiec at 5%",
+      "lowest_qlike_model": "garch",
+      "qlike_by_model": {
+        "naive": -8.01382357242927,
+        "ewma": -8.388213706819565,
+        "garch": -8.452511885267263
+      },
+      "series": "garch_normal_primary",
+      "kupiec_p": 0.0,
+      "supported": true
+    },
+    "H4": {
+      "statement": "FHS improves on Normal for each volatility model",
+      "by_model": {
+        "naive": {
+          "dm": {
+            "a": "naive_fhs_primary",
+            "b": "naive_normal_primary",
+            "statistic": -1.1615793255782518,
+            "p_value": 0.24551669858640365,
+            "mean_difference_a_minus_b": -4.408152648724947e-05,
+            "lag": 8,
+            "lower_mean_loss": "naive_fhs_primary",
+            "holm_adjusted_p": 0.8630319616895397,
+            "significant": false,
+            "kind": "descriptive difference"
+          },
+          "fhs_kupiec_p": 0.573435,
+          "supported": false
+        },
+        "ewma": {
+          "dm": {
+            "a": "ewma_fhs_primary",
+            "b": "ewma_normal_primary",
+            "statistic": -1.2381988633677987,
+            "p_value": 0.21575799042238492,
+            "mean_difference_a_minus_b": -3.65664892911742e-05,
+            "lag": 8,
+            "lower_mean_loss": "ewma_fhs_primary",
+            "holm_adjusted_p": 0.8630319616895397,
+            "significant": false,
+            "kind": "descriptive difference"
+          },
+          "fhs_kupiec_p": 0.977592,
+          "supported": false
+        },
+        "garch": {
+          "dm": {
+            "a": "garch_fhs_primary",
+            "b": "garch_normal_primary",
+            "statistic": -1.049529899386333,
+            "p_value": 0.29403522207929755,
+            "mean_difference_a_minus_b": -1.4495916422089416e-05,
+            "lag": 8,
+            "lower_mean_loss": "garch_fhs_primary",
+            "holm_adjusted_p": 0.8630319616895397,
+            "significant": false,
+            "kind": "descriptive difference"
+          },
+          "fhs_kupiec_p": 0.573435,
+          "supported": false
+        }
+      }
+    }
+  }
+}

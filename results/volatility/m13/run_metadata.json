@@ -1,0 +1,20 @@
+{
+  "generated_at_utc": "2026-10-12T22:56:14+00:00",
+  "git_commit": "e3121fc58eec08e0f21478f7807e8c27c2619ed9",
+  "preregistration_commit": "35008cad9fd0a8d80f3882554420978f09fb0304",
+  "environment": {
+    "python": "3.11.16",
+    "platform": "Linux-6.18.40.1-microsoft-standard-WSL2-x86_64-with-glibc2.39",
+    "machine": "x86_64",
+    "numpy_log_dispatch": "X86_V4",
+    "numpy": "2.4.6",
+    "scipy": "1.17.1",
+    "pandas": "3.0.5",
+    "arch": "8.0.0"
+  },
+  "inputs_sha256": {
+    "data/research/SPY_prices_2000_2025.csv": "fbc1ebee8c5c61c6a7c68a31b08dd94af43542df178b592653cc3196bb2c8cbc",
+    "data/research/SPY_prices.csv": "43c69a75115fdf8352c80285167d57164aed5cb291ef55455f6094b55fb8fa92",
+    "results/real_data/backtest_results.csv": "0c6140e7f5108cc525d98ccaf77ff3d201fcf97bc59fc0e463b283f0b89a8814"
+  }
+}
