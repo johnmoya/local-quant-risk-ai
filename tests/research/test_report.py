@@ -8,6 +8,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pytest
+from research.volatility import report as report_module
 from research.volatility.report import Evaluation, load_frozen_baseline
 from research.volatility.run_m13 import dump_json, write_outputs
 from research.volatility.walk_forward import (
@@ -19,8 +20,10 @@ from research.volatility.walk_forward import (
 )
 
 from quant_risk_ai.core.exceptions import DataValidationError
+from quant_risk_ai.risk.backtesting import acerbi_szekely_test
 from quant_risk_ai.risk.forecast_evaluation import (
     diebold_mariano,
+    holm_adjusted_p_values,
     qlike_losses,
     quantile_losses,
 )
@@ -126,6 +129,134 @@ def test_holm_is_applied_within_each_family(report: dict):
         assert adjusted[0][1] == pytest.approx(min(1.0, m * adjusted[0][0]), rel=1e-15)
         for entry in entries:
             assert entry["significant"] == (entry["holm_adjusted_p"] <= 0.05)
+
+
+def test_holm_significance_includes_the_boundary(
+    evaluation: Evaluation, monkeypatch: pytest.MonkeyPatch
+):
+    """Significant means Holm-adjusted p <= 0.05 (§13), at the boundary too."""
+    monkeypatch.setattr(
+        report_module, "holm_adjusted_p_values", lambda p_values: dict.fromkeys(p_values, 0.05)
+    )
+    losses = evaluation.volatility_losses("garch_primary", "qlike")
+    other = evaluation.volatility_losses("naive_primary", "qlike")
+    result = evaluation._dm({"pair": (losses, other, "garch", "naive")})
+    assert result["pair"]["significant"] is True
+    assert result["pair"]["kind"] == "significant difference"
+
+
+def test_an_undefined_dm_is_left_out_of_its_family(evaluation: Evaluation):
+    """A zero-variance differential is reported as undefined and does not
+    count towards m in the Holm adjustment of the others (§13)."""
+    rng = np.random.default_rng(7)
+    base = rng.standard_normal(500)
+    family = {
+        "strong": (base + 0.3 + rng.standard_normal(500), base, "a", "b"),
+        "weak": (base + 0.1 + rng.standard_normal(500), base, "c", "d"),
+        "identical": (base, base.copy(), "e", "f"),
+    }
+    result = evaluation._dm(family)
+    assert "zero long-run variance" in result["identical"]["undefined"]
+    assert "holm_adjusted_p" not in result["identical"]
+    raw = {key: result[key]["p_value"] for key in ("strong", "weak")}
+    expected = holm_adjusted_p_values(raw)
+    assert max(expected.values()) < 1.0  # m = 2 and m = 3 would differ
+    for key in raw:
+        assert result[key]["holm_adjusted_p"] == expected[key]
+
+
+# --- Acerbi–Székely: each series simulated under its own predictive distribution --------
+
+
+def _draw(simulate, seed: int = 11) -> np.ndarray:
+    return simulate(np.random.default_rng(seed))
+
+
+def test_fhs_null_resamples_each_days_residuals_scaled_by_its_sigma(evaluation: Evaluation):
+    n = len(evaluation.frame)
+    for series in ("garch_fhs_primary", "naive_fhs_w250", "garch_fhs_oos_primary"):
+        pool = evaluation.residuals[series]
+        model = "garch_primary" if series == "garch_fhs_oos_primary" else series.replace("_fhs", "")
+        scale = np.sqrt(evaluation.frame[f"{model}_sigma2"].to_numpy())
+        picks = np.random.default_rng(11).integers(0, pool.shape[1], size=n)
+        expected = pool[np.arange(n), picks] * scale
+        np.testing.assert_array_equal(_draw(evaluation._simulator(series, None)), expected)
+
+
+def test_normal_null_is_zero_mean_with_the_forecast_sigma(evaluation: Evaluation):
+    n = len(evaluation.frame)
+    for series in ("ewma_normal_primary", "garch_normal_w250"):
+        sigma = np.sqrt(evaluation.frame[f"{series.replace('_normal', '')}_sigma2"].to_numpy())
+        expected = np.zeros(n) + sigma * np.random.default_rng(11).standard_normal(n)
+        windows = evaluation._frozen_windows()
+        np.testing.assert_array_equal(_draw(evaluation._simulator(series, windows)), expected)
+
+
+def test_frozen_nulls_use_the_published_windows(evaluation: Evaluation):
+    n = len(evaluation.frame)
+    windows = evaluation._frozen_windows()
+    picks = np.random.default_rng(11).integers(0, windows.shape[1], size=n)
+    np.testing.assert_array_equal(
+        _draw(evaluation._simulator("frozen_historical", windows)),
+        windows[np.arange(n), picks],
+    )
+    mu, sigma = windows.mean(axis=1), windows.std(axis=1, ddof=1)
+    expected = mu + sigma * np.random.default_rng(11).standard_normal(n)
+    for series in ("frozen_parametric", "frozen_monte_carlo"):
+        np.testing.assert_array_equal(_draw(evaluation._simulator(series, windows)), expected)
+
+
+def test_acerbi_szekely_entries_use_the_preregistered_seeds(
+    evaluation: Evaluation, report: dict, config: M13Config
+):
+    windows = evaluation._frozen_windows()
+    for series, entry in report["series"].items():
+        expected = acerbi_szekely_test(
+            evaluation.realized,
+            evaluation.frame[f"{series}_var"].to_numpy(),
+            evaluation.frame[f"{series}_es"].to_numpy(),
+            alpha=config.alpha,
+            position_value=config.position_value,
+            simulate=evaluation._simulator(series, windows),
+            n_scenarios=config.acerbi_szekely_scenarios,
+            seed_base=2_000_000,
+        )
+        assert entry["acerbi_szekely_z2"]["statistic"] == expected.statistic
+        assert entry["acerbi_szekely_z2"]["p_value"] == expected.p_value
+
+
+# --- reaction and overshoot (§13), on a crafted frame -----------------------------------
+
+
+def _reaction_of(evaluation: Evaluation, high: list[bool], ratio: list[float]) -> dict:
+    """forecast vol / RV22 is `ratio` on each day; RV22 is 0.2 throughout."""
+    s2 = (0.2 * np.array(ratio)) ** 2 / 252.0
+    crafted = copy.copy(evaluation)
+    crafted.frame = pd.DataFrame(
+        {
+            "high_vol": high,
+            "rv22_previous": np.sqrt(252.0 * s2) / np.array(ratio),
+            "garch_primary_sigma2": s2,
+        }
+    )
+    return crafted._reaction("garch_primary")
+
+
+def test_reaction_counts_days_until_the_forecast_reaches_rv22(evaluation: Evaluation):
+    high = [False, True, True, True, True, False]
+    # Exactly equal (ratio 1.0) on the episode's third day: caught up
+    # (>=), 2 days after the episode starts.
+    result = _reaction_of(evaluation, high, [1.0, 0.5, 0.8, 1.0, 1.0, 1.0])
+    assert result["reaction_days"] == [2]
+    assert _reaction_of(evaluation, high, [1.0, 0.5, 0.8, 0.9, 0.9, 1.0])["reaction_days"] == [None]
+
+
+def test_overshoot_is_the_mean_over_the_22_days_after_the_episode(evaluation: Evaluation):
+    high = [True, True] + [False] * 30
+    ratio = [1.0, 1.0] + [1.0] * 21 + [3.0] + [1.0] * 8
+    result = _reaction_of(evaluation, high, ratio)
+    # Days 2..23 follow the episode; only day 23 overshoots, by 2.
+    assert result["mean_overshoot_after_exit"] == pytest.approx(2.0 / 22.0, rel=1e-12)
 
 
 def test_regime_partition_covers_every_day_once(report: dict):
