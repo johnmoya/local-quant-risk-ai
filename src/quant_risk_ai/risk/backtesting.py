@@ -31,14 +31,21 @@ edge cases need no special-casing.
 
 from __future__ import annotations
 
+import math
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from enum import StrEnum
 
+import numpy as np
 import pandas as pd
 from scipy.special import xlogy
 from scipy.stats import binom, chi2
 
-from quant_risk_ai.core.exceptions import DataValidationError, InsufficientDataError
+from quant_risk_ai.core.exceptions import (
+    DataValidationError,
+    InsufficientDataError,
+    InvalidParameterError,
+)
 from quant_risk_ai.risk.stats_utils import validate_alpha, validate_position_value
 
 
@@ -275,4 +282,107 @@ def traffic_light_zone(violations: pd.Series, alpha: float) -> TrafficLightResul
         n_violations=n_violations,
         cumulative_probability=cumulative_probability,
         zone=zone,
+    )
+
+
+# --- Acerbi–Székely (M13) ------------------------------------------------------
+
+
+def acerbi_szekely_z2(
+    realized_returns: np.ndarray | Sequence[float],
+    var_estimates: np.ndarray | Sequence[float],
+    es_estimates: np.ndarray | Sequence[float],
+    *,
+    alpha: float,
+    position_value: float,
+) -> float:
+    """Acerbi and Székely's (2014) Z2 statistic for an ES forecast series.
+
+        Z2 = 1 - sum_t L_t I_t / (T tau ES_t),   tau = 1 - alpha
+
+    with L_t = -r_t V the realised loss and I_t = 1{L_t > VaR_t}, the same
+    strict exception rule as `compute_violations`. Under a correct ES,
+    E[Z2] = 0; an understated ES makes Z2 negative. It needs the VaR only to
+    define the exceptions.
+
+    Raises:
+        InvalidParameterError: invalid alpha or position_value.
+        DataValidationError: misaligned or non-finite inputs, or an ES that
+            is not positive (it divides).
+    """
+    validate_alpha(alpha)
+    validate_position_value(position_value)
+    r = np.asarray(realized_returns, dtype=float)
+    var = np.asarray(var_estimates, dtype=float)
+    es = np.asarray(es_estimates, dtype=float)
+    if r.ndim != 1 or r.size == 0 or r.shape != var.shape or r.shape != es.shape:
+        raise DataValidationError("returns, VaR and ES must be equally long, non-empty 1-D series")
+    if not (np.isfinite(r).all() and np.isfinite(var).all() and np.isfinite(es).all()):
+        raise DataValidationError("returns, VaR and ES must be finite")
+    if (es <= 0).any():
+        raise DataValidationError("Z2 divides by ES, which must be positive on every day")
+    losses = -r * position_value
+    exceptions = losses > var
+    terms = np.where(exceptions, losses / es, 0.0)
+    return 1.0 - math.fsum(terms.tolist()) / (r.size * (1.0 - alpha))
+
+
+@dataclass(frozen=True)
+class AcerbiSzekelyResult:
+    """Z2 and its one-sided simulated p-value, P(Z2 <= observed | H0)."""
+
+    statistic: float
+    p_value: float
+    n_scenarios: int
+    seed_base: int
+
+
+def acerbi_szekely_test(
+    realized_returns: np.ndarray | Sequence[float],
+    var_estimates: np.ndarray | Sequence[float],
+    es_estimates: np.ndarray | Sequence[float],
+    *,
+    alpha: float,
+    position_value: float,
+    simulate: Callable[[np.random.Generator], np.ndarray],
+    n_scenarios: int = 10_000,
+    seed_base: int = 2_000_000,
+) -> AcerbiSzekelyResult:
+    """Z2 with a p-value simulated under the model's own predictive
+    distribution.
+
+    `simulate(rng)` returns one scenario: a return for every day, drawn
+    from the distribution the forecasts claim. Scenario m uses
+    `np.random.default_rng(seed_base + m)`, so each scenario is
+    reproducible on its own. The VaR and ES stay those of the real
+    forecasts. H1 is that ES is understated (Z2 too negative), so the
+    p-value is one-sided, and computed as (1 + #{Z2_m <= Z2}) / (M + 1),
+    which is never 0.
+
+    Raises:
+        InvalidParameterError: fewer than 1 scenario, or a scenario of the
+            wrong length.
+    """
+    if n_scenarios < 1:
+        raise InvalidParameterError(f"n_scenarios must be positive, got {n_scenarios}")
+    statistic = acerbi_szekely_z2(
+        realized_returns, var_estimates, es_estimates, alpha=alpha, position_value=position_value
+    )
+    n_days = np.asarray(realized_returns).size
+    as_extreme = 0
+    for scenario in range(n_scenarios):
+        simulated = np.asarray(simulate(np.random.default_rng(seed_base + scenario)), dtype=float)
+        if simulated.shape != (n_days,):
+            raise InvalidParameterError(
+                f"simulate returned shape {simulated.shape}, expected ({n_days},)"
+            )
+        z2 = acerbi_szekely_z2(
+            simulated, var_estimates, es_estimates, alpha=alpha, position_value=position_value
+        )
+        as_extreme += z2 <= statistic
+    return AcerbiSzekelyResult(
+        statistic=statistic,
+        p_value=(1 + as_extreme) / (n_scenarios + 1),
+        n_scenarios=n_scenarios,
+        seed_base=seed_base,
     )

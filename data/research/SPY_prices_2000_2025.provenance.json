@@ -1,0 +1,30 @@
+{
+  "file": "data/research/SPY_prices_2000_2025.csv",
+  "sha256": "fbc1ebee8c5c61c6a7c68a31b08dd94af43542df178b592653cc3196bb2c8cbc",
+  "purpose": "Pre-2015 history for the M13/M14 volatility models (GARCH fits, FHS residual windows, regime threshold). Spliced onto the frozen data/research/SPY_prices.csv in return space; see docs/design_m13.md section 3.",
+  "source": "Yahoo Finance via yfinance, auto_adjust=True (dividends and splits)",
+  "ticker": "SPY",
+  "command": "uv run --isolated --python 3.11 --extra research python -m research.download_data --start 2000-01-01 --end 2025-12-31 --output data/research/SPY_prices_2000_2025.csv",
+  "start": "2000-01-01",
+  "end_exclusive": "2025-12-31",
+  "downloaded_at_utc": "2026-10-02T17:20:51Z",
+  "software": {
+    "yfinance": "1.7.0",
+    "python": "3.11.16",
+    "pandas": "3.0.5"
+  },
+  "rows": 6538,
+  "first_date": "2000-01-03",
+  "last_date": "2025-12-30",
+  "precision": "Yahoo delivers these adjusted prices at single precision. 85% of the prices are exactly representable in float32, whose relative spacing at these price levels is 7.6e-8 to 1.0e-7, and every new dividend re-adjusts and re-rounds the whole history. Two downloads therefore disagree by about 1e-7 relative on prices and by up to about 1e-6 on log returns. No figure derived from this file is more precise than that, whatever precision it is printed with.",
+  "overlap_check": {
+    "against": "data/research/SPY_prices.csv (frozen, sha256 43c69a75115fdf8352c80285167d57164aed5cb291ef55455f6094b55fb8fa92)",
+    "criterion": "max |log-return difference| <= 2e-6 and every price ratio (extended / frozen) within 2e-6 of its median; adopted at G1 (G1-1) in place of 1e-10, which single-precision prices cannot meet",
+    "overlapping_returns": 2764,
+    "max_return_difference": 1.0244026613648316e-06,
+    "max_return_difference_date": "2016-11-07",
+    "max_ratio_deviation_from_median": 8.568e-07,
+    "passed": true
+  },
+  "splice": "Returns dated on or before 2015-01-02 come from this file; returns from 2015-01-05 on come from the frozen file, so every out-of-sample return is bit-identical to the published baseline's."
+}

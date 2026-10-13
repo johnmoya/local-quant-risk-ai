@@ -39,8 +39,10 @@ jobs:
       # out of date with pyproject.toml (--frozen would silently use the
       # stale lock). Unpinned tool versions already caused drift twice
       # (mypy in M5, ruff format in M9).
+      # `forecasting` (arch, xgboost-cpu) is the M13/M14 estimation extra:
+      # the GARCH and XGBoost fitting tests need it on both legs.
       - name: Install dependencies from uv.lock
-        run: uv sync --locked --extra dev
+        run: uv sync --locked --extra dev --extra forecasting
 
       # v1.0.0-v1.0.2 were tagged while the package declared 0.1.0. A release
       # tag must now name the version the installed package reports.
@@ -57,6 +59,7 @@ jobs:
         run: |
           uv run --no-sync python --version
           uv run --no-sync python -c "import numpy, scipy, pandas; print('numpy', numpy.__version__, 'scipy', scipy.__version__, 'pandas', pandas.__version__)"
+          uv run --no-sync python -c "import arch, xgboost; print('arch', arch.__version__, 'xgboost', xgboost.__version__)"
           uv run --no-sync ruff --version
           uv run --no-sync mypy --version
 
@@ -73,10 +76,11 @@ jobs:
       # syntax, so each leg type-checks against its own interpreter version.
       # pyproject.toml's python_version = "3.11" stays the local default, and
       # the 3.11 leg keeps guaranteeing 3.11 compatibility.
-      # research/ is included even though CI installs only the `dev` extra:
-      # yfinance and matplotlib are declared ignore_missing_imports in
+      # research/ is included even though CI does not install the `research`
+      # extra: yfinance and matplotlib are declared ignore_missing_imports in
       # pyproject.toml, so the research scripts stay type-checked without
-      # pulling their dependencies into CI.
+      # pulling their dependencies into CI. arch and xgboost (`forecasting`)
+      # are installed and ship their own type information.
       - name: mypy
         run: >-
           uv run --no-sync mypy --python-version ${{ matrix.python-version }}

@@ -49,6 +49,50 @@ formats in `data/loaders.py` (see `docs/math_reference.md`), Docker base
 images pinned by digest, `uv sync --locked` in CI, the `risk/` no-I/O rule
 enforced by test, and CI on Python 3.11/3.12 including release tags.
 
+### `v1.2.0` release notes (pending release)
+
+`v1.2.0` closes M13 (volatility models), a pre-registered research
+milestone. No API endpoint, request schema, `RiskMethod` member, Docker
+image or v1/v1.1 figure changes.
+
+- **Process:**
+  - pre-registration `docs/design_m13.md` at `35008ca`;
+  - pre-OOS amendments ratified at G3 at `1af2fc5`;
+  - a single out-of-sample run (M13.8) at `e3121fc`, in the reference
+    environment;
+  - artefacts committed unmodified at `84d05fd`.
+- **Results** (`docs/results_m13.md`):
+  - H2 and H3 supported, H1 and H4 not supported.
+  - GARCH has the lowest QLIKE, significantly below EWMA and Naive after
+    Holm.
+  - FHS brings coverage to nominal for every model: 25–28 exceptions
+    against 25.14 expected, where the Normal series have 56–69.
+  - The quantile-loss DM separates none of the primary series after
+    Holm.
+- **Reproducibility.** The M13 artefacts are a regression test:
+  - byte for byte in the reference environment;
+  - elsewhere, layered: discrete values exact, floats within measured
+    bounds.
+
+  Two W250 GARCH refits sit on the strict α + β < 1 boundary. Their
+  validity, and the W250 GARCH floats, depend on the CPU; no W250 risk
+  outcome does.
+- **For the M14 pre-registration:**
+  - do not condition a tail-calibration hypothesis on a QL DM test whose
+    power was not computed;
+  - de-duplicate the W250 families (Naive and EWMA are effectively the
+    same in both specifications);
+  - pre-register a reaction summary that discriminates;
+  - name each hypothesis after what its rule measures (M13's H2 is named
+    for reactivity, and its rule tests QLIKE accuracy).
+
+### M13 — complete (pending the `v1.2.0` tag)
+
+Volatility models: Naive, EWMA and GARCH(1,1) σ forecasts → Normal and FHS
+VaR/ES, evaluated against the frozen v1 baseline on the same 2,514 days.
+M13.0–M13.9 are each in their own commits on `m13/volatility-models`. Gates:
+G0 (design), G1 (pre-registration), G3 (before the single OOS run).
+
 ### `v1.1.0` release notes (released)
 
 `v1.1.0` closes M11 (multi-asset portfolios). Changes to existing
@@ -309,9 +353,19 @@ Consequences that carry through all of v2:
 |---|---|
 | **M11** | **Multi-asset portfolios**: `Portfolio`/`Position` types, covariance matrix, covariance-aware Historical/Parametric/Monte Carlo VaR and ES, `RiskResult.asset_ids` populated beyond length 1. No `RiskResult`/API/LLM schema break expected — that's the point of the M0 design |
 | **M12** | **Factor-based risk**: factor exposures and factor covariance, risk decomposition into factor and idiosyncratic components, marginal/component contributions per position |
-| **M13** | **Volatility forecasting**: time-varying volatility models (e.g. EWMA, GARCH-family) feeding VaR/ES as an alternative to static sample volatility; backtested with the existing M5 suite |
-| **M14** | **ML-based VaR / ES**: learned quantile/tail models inside the risk engine under the principle above — versioned artifacts, fixed seeds, reproducible training, known-answer and invariant tests (ES ≥ VaR, monotonicity in alpha), and M5 backtests against the classical baselines |
+| **M13** | **Volatility models**: Naive, EWMA and GARCH(1,1) conditional volatility feeding VaR/ES under Normal and filtered historical simulation, as an alternative to static sample volatility; backtested with the existing M5 suite and compared with the frozen v1 baseline on the same out-of-sample days. Pre-registered in `docs/design_m13.md`; released as `v1.2.0` |
+| **M14** | **ML volatility forecasting**: HAR (OLS) as the linear statistical control against XGBoost, with temporal walk-forward validation; the forecasts feed the M13 VaR/ES mappings and are evaluated against the M13 series. Pre-registered in `docs/design_m14.md` before training; released as `v1.3.0` |
 | **M15** | **MLflow / experiment tracking**: parameters, metrics, seeds, data versions and artifacts for every training run, outside `risk/` |
 | **M16** | **Model registry + model serving**: registered, versioned model artifacts with promotion stages; serving through the API layer, loading artifacts at the boundary and passing them into `risk/` |
 | **M17** | **Data / prediction / performance monitoring**: input data drift, prediction distribution drift, and ongoing VaR performance via the M5 backtests (violation rates, traffic-light zone over time) |
 | **M18** | **Automated retraining**: retraining triggered by M17 signals or schedule, producing new versioned artifacts through M15/M16 — never replacing a served model without the same tests and backtests a manual release would pass |
+
+**Re-scoped in M13.1** (`docs/design_m13.md` §1): M14 was "ML-based VaR/ES
+(learned quantile/tail models)". It is now ML volatility forecasting, the
+natural continuation of M13. Learned quantile/tail models move to a later
+milestone, still under the principle above: versioned artifacts, fixed
+seeds, reproducible training, known-answer and invariant tests (ES ≥ VaR,
+monotonicity in alpha) and M5 backtests against the classical baselines.
+M12 (factor risk) stays pending; the release numbers do not depend on it.
+M13 and M14 report through a research-only `ConditionalRiskResult`, not
+`RiskResult`, until M16 serves them (see `docs/design_m13.md` §1).

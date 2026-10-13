@@ -17,6 +17,7 @@ from __future__ import annotations
 import argparse
 import json
 import platform
+from collections.abc import Sequence
 from dataclasses import asdict, dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -306,7 +307,9 @@ def annualised_volatility(returns: pd.Series) -> float | None:
     return round(float(returns.std(ddof=1)) * float(np.sqrt(252)), 4)
 
 
-def annual_basel_zones(frame: pd.DataFrame, config: BacktestConfig) -> dict:
+def annual_basel_zones(
+    frame: pd.DataFrame, config: BacktestConfig, methods: Sequence[str] = METHODS
+) -> dict:
     """Basel zone per calendar year — the review a supervisor actually runs.
 
     Basel classifies a model on roughly one trading year (~250 days), once
@@ -332,7 +335,7 @@ def annual_basel_zones(frame: pd.DataFrame, config: BacktestConfig) -> dict:
             "realized_volatility_annualised": annualised_volatility(subset["realized_return"]),
         }
         index = pd.DatetimeIndex(pd.to_datetime(subset["date"]))
-        for method in METHODS:
+        for method in methods:
             violations = pd.Series(subset[f"{method}_exception"].to_numpy(), index=index)
             exceptions = int(violations.sum())
             if not classified:
@@ -352,7 +355,9 @@ def annual_basel_zones(frame: pd.DataFrame, config: BacktestConfig) -> dict:
     return result
 
 
-def rolling_exception_counts(frame: pd.DataFrame, window: int = 250) -> pd.DataFrame:
+def rolling_exception_counts(
+    frame: pd.DataFrame, window: int = 250, methods: Sequence[str] = METHODS
+) -> pd.DataFrame:
     """Trailing exception count per method — the quantity Basel classifies.
 
     Returned rather than plotted here so the figure module and the summary
@@ -363,12 +368,14 @@ def rolling_exception_counts(frame: pd.DataFrame, window: int = 250) -> pd.DataF
         method: pd.Series(frame[f"{method}_exception"].to_numpy(dtype=float), index=index)
         .rolling(window)
         .sum()
-        for method in METHODS
+        for method in methods
     }
     return pd.DataFrame(counts)
 
 
-def stress_episodes(frame: pd.DataFrame, config: BacktestConfig) -> dict:
+def stress_episodes(
+    frame: pd.DataFrame, config: BacktestConfig, methods: Sequence[str] = METHODS
+) -> dict:
     """Exception behaviour inside pre-identified high-volatility periods.
 
     The windows are stated as date ranges in which returns were unusually
@@ -396,7 +403,7 @@ def stress_episodes(frame: pd.DataFrame, config: BacktestConfig) -> dict:
                 float(subset["realized_return"].std(ddof=1)) * float(np.sqrt(252)), 4
             ),
         }
-        for method in METHODS:
+        for method in methods:
             entry[f"{method}_exceptions"] = int(subset[f"{method}_exception"].sum())
             entry[f"{method}_mean_var"] = round(float(subset[f"{method}_var"].mean()), 2)
         result[label] = entry
