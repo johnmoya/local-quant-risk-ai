@@ -37,6 +37,13 @@ hypothesis.
 | **H3** | A better volatility forecast does not imply better coverage: the lowest-QLIKE model, mapped through Normal, rejects Kupiec | Lowest QLIKE is GARCH (−8.4525 vs EWMA −8.3882, Naive −8.0138). GARCH-Normal has 56 exceptions vs 25.14, **Kupiec p < 1e-6** | **Supported** |
 | **H4** | FHS improves on Normal, per model: QL DM FHS vs Normal significant in FHS's favour (F2, Holm) **and** FHS passes Kupiec | Naive: DM −1.162, Holm 0.863, Kupiec p 0.573. EWMA: DM −1.238, Holm 0.863, Kupiec p 0.978. GARCH: DM −1.050, Holm 0.863, Kupiec p 0.573 | **Not supported** for any model |
 
+**H2 measures accuracy, not reactivity.** The hypothesis is named "GARCH
+is more responsive than Naive", but its rule tests forecast accuracy
+(QLIKE over the full sample). The verdict "supported" is a statement
+about accuracy. Reactivity has only descriptive support: in §4.2, GARCH's
+σ̂ never reaches RV22 in 5 of the 16 high-vol episodes, against 13 for
+Naive.
+
 **H3, read with its descriptive companion.**
 - The verdict stands as the rule gives it: the best volatility forecast,
   through a Normal tail, fails coverage.
@@ -57,14 +64,18 @@ fails for all three models.
   - none of those DMs is significant after Holm, and none even before it
     (raw p 0.25, 0.22, 0.29).
 - **What the rule tied together:** a backtest outcome with a direct
-  quantile-loss comparison of low power (risk R6). Here the mean QL
-  differences between FHS and Normal are 1.4e-5 to 4.4e-5, against mean
-  losses of about 4e-4 to 6e-4, and none comes close to significance even
-  before Holm.
-- **Lesson for the M14 pre-registration:** a hypothesis about tail
-  calibration should not be conditioned on a QL DM test whose power was
-  never computed. Either pre-register the DM's power against a plausible
-  effect, or state the hypothesis on the backtests it is about.
+  quantile-loss comparison of low power. The low power of the
+  quantile-loss DM was anticipated in the design review, but it was not
+  written into the pre-registration. Here the mean QL differences between
+  FHS and Normal are 1.4e-5 to 4.4e-5, against mean losses of about 4e-4
+  to 6e-4, and none comes close to significance even before Holm.
+
+**Lessons for the M14 pre-registration:**
+- A hypothesis about tail calibration should not be conditioned on a QL
+  DM test whose power was never computed. Either pre-register the DM's
+  power against a plausible effect, or state the hypothesis on the
+  backtests it is about.
+- Each hypothesis's name must match what its rule measures.
 
 ## 2. Decomposition (primary specification)
 
@@ -248,8 +259,9 @@ matches.
 - **The power of DM on quantile loss.** No primary F2 test is significant,
   including the FHS-vs-Normal tests behind H4, while the backtests separate
   those series clearly. The quantile-loss differential is small against
-  its noise. Its power was not computed before the run (risk R6). See
-  H4's lesson for M14.
+  its noise. The low power of the quantile-loss DM was anticipated in the
+  design review, but it was not written into the pre-registration. See
+  the lessons for M14 in §1.
 - **The floor of the AS p-value.** Nine series sit at the floor, reported
   as "< 1e-4": no simulated Z2 was as extreme as the observed one. They
   are **not ranked** against each other; distinguishing them would need a

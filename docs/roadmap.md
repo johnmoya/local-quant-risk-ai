@@ -82,7 +82,9 @@ image or v1/v1.1 figure changes.
     power was not computed;
   - de-duplicate the W250 families (Naive and EWMA are effectively the
     same in both specifications);
-  - pre-register a reaction summary that discriminates.
+  - pre-register a reaction summary that discriminates;
+  - name each hypothesis after what its rule measures (M13's H2 is named
+    for reactivity, and its rule tests QLIKE accuracy).
 
 ### M13 — complete (pending the `v1.2.0` tag)
 
